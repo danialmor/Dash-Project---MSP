@@ -36,6 +36,7 @@
   P.logout = function (force) {
     var me = this; return me.ready.then(function () { if ((me.pending() || me.conflicts().length) && !force) { var e = new Error('pending-changes'); e.pending = me.pending(); throw e } me.token = ''; me.user = null; me.cache = {}; try { me.ls.removeItem('hub.token') } catch (x) { } me.emit('status') });
   };
+  P.changePin = function (old, nw) { var me = this; return me.api('POST', '/auth/change-pin', { old: old, new: nw }).then(function (r) { me.token = r.token; try { me.ls.setItem('hub.token', r.token) } catch (e) { } me.emit('status'); return r }) };
   P.me = function () { var me = this; return me.api('GET', '/me').then(function (r) { me.user = r.user; me.grants = r.grants; return r }) };
   P.directory = function () { return this.api('GET', '/directory?site=' + encodeURIComponent(this.site)).then(function (r) { return r.users }) };
   P.list = function (coll) {
