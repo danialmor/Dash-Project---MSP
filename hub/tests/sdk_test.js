@@ -3,14 +3,14 @@ const { spawn, execFileSync } = require('child_process'), os = require('os'), fs
 const Hub = require('../../shared/sdk.js');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hub-')), port = 18000 + Math.floor(Math.random() * 1000);
 const env = { ...process.env, HUB_DATA_DIR: dir, HUB_PORT: String(port) }, srv = path.join(__dirname, '..', 'server.py');
-const init = execFileSync('python3', [srv, 'init'], { env }).toString(), pin = (init.match(/(\d{8})/) || [])[1]; assert(pin, init);
+const init = execFileSync('python3', [srv, 'init'], { env }).toString(); assert(/Admin123/.test(init), init);
 const child = spawn('python3', [srv], { env, stdio: 'ignore' }); const B = 'http://127.0.0.1:' + port + '/api/v1';
 const sleep = ms => new Promise(r => setTimeout(r, ms)); const mem = () => { const m = {}; return { getItem: k => m[k] || null, setItem: (k, v) => { m[k] = v }, removeItem: k => { delete m[k] } } };
 (async () => {
   try {
     for (let i = 0; i < 40; i++) { try { await fetch(B + '/health'); break } catch (e) { await sleep(100) } }
-    const adm = new Hub({ base: B, site: 'admin', storage: mem(), interval: 1e9 }); await adm.login('admin', pin);
-    const mk = async (code, grants) => (await adm.api('POST', '/admin/users', { code, name: code, role: 'member', grants })).pin;
+    const adm = new Hub({ base: B, site: 'admin', storage: mem(), interval: 1e9 }); const lr = await adm.login('Admin', 'Admin123'); assert.strictEqual(lr.must_change, true); await assert.rejects(adm.api('GET', '/admin/stats'), e => e.body && e.body.error === 'must-change-pin'); await adm.changePin('Admin123', 'Str0ng-Admin-Pass'); await adm.api('GET', '/admin/stats');
+    const mk = async (code, grants) => (await adm.api('POST', '/admin/users', { code, name: code, role: 'member', grants, pin: 'Test-Pin-123' })).pin;
     const p1 = await mk('sec', { aide: 'member' }), p2 = await mk('des', { aide: 'member' });
     const a = new Hub({ base: B, site: 'aide', storage: mem(), interval: 1e9 }); await a.login('sec', p1);
     const out = {};

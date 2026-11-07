@@ -28,7 +28,7 @@ class T(unittest.TestCase):
     def tearDownClass(cls): cls.srv.shutdown(); cls.tmp.cleanup()
 
     def mkuser(self, code, grants, role='member'):
-        s, r = call(self.base, 'POST', '/api/v1/admin/users', {'code': code, 'name': 'کاربر ' + code, 'role': role, 'grants': grants}, self.adm)
+        s, r = call(self.base, 'POST', '/api/v1/admin/users', {'code': code, 'name': 'کاربر ' + code, 'role': role, 'grants': grants, 'pin': 'Test-Pin-123'}, self.adm)
         self.assertEqual(s, 200, r); s, l = call(self.base, 'POST', '/api/v1/auth/login', {'code': code, 'pin': r['pin']}); self.assertEqual(s, 200); return l['token'], r
 
     def test_01_health_and_auth(self):
@@ -129,5 +129,18 @@ class T(unittest.TestCase):
         c.request('POST', '/api/v1/admin/backup', b'{}', h); r = c.getresponse(); r.read(); self.assertEqual(r.status, 200)
         c.request('GET', '/api/v1/admin/stats', headers=h); r = c.getresponse(); self.assertEqual(r.status, 200); r.read()
         c.request('POST', '/api/v1/me', b'{"x":1}', h); r = c.getresponse(); r.read(); c.request('GET', '/api/v1/health'); r = c.getresponse(); self.assertEqual(r.status, 200); c.close()
+
+    def test_13_default_password_forces_change(self):
+        s, r = call(self.base, 'POST', '/api/v1/admin/users', {'code': 'Newbie', 'name': 'تازه', 'role': 'member', 'grants': {'aide': 'member'}}, self.adm); self.assertEqual(r['pin'], 'Admin123')
+        s, l = call(self.base, 'POST', '/api/v1/auth/login', {'code': 'newbie', 'pin': 'Admin123'}); self.assertEqual((s, l['must_change']), (200, True)); t = l['token']
+        self.assertEqual(call(self.base, 'GET', '/api/v1/data/aide/events', token=t), (403, {'error': 'must-change-pin'}))
+        self.assertEqual(call(self.base, 'GET', '/api/v1/me', token=t)[1]['must_change'], True)
+        for bad in ('short', 'Admin123', 'password', 'newbie1234'[:7]): self.assertEqual(call(self.base, 'POST', '/api/v1/auth/change-pin', {'old': 'Admin123', 'new': bad}, t)[0], 400)
+        self.assertEqual(call(self.base, 'POST', '/api/v1/auth/change-pin', {'old': 'wrong-old', 'new': 'Brand-New-Pass1'}, t)[0], 401)
+        s, n = call(self.base, 'POST', '/api/v1/auth/change-pin', {'old': 'Admin123', 'new': 'Brand-New-Pass1'}, t); self.assertEqual(s, 200)
+        self.assertEqual(call(self.base, 'GET', '/api/v1/me', token=t)[0], 401)
+        self.assertEqual(call(self.base, 'GET', '/api/v1/data/aide/events', token=n['token'])[0], 200)
+        self.assertEqual(call(self.base, 'POST', '/api/v1/auth/login', {'code': 'Newbie', 'pin': 'Admin123'})[0], 401)
+        s, us = call(self.base, 'GET', '/api/v1/admin/users', token=self.adm); self.assertFalse([u for u in us['users'] if u['code'] == 'Newbie'][0]['must_change'])
 
 if __name__ == '__main__': unittest.main(verbosity=2)
