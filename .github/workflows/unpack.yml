@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           test -f danimor-platform.zip || { echo 'zip نیست'; exit 1; }
-          unzip -o -q danimor-platform.zip -x '.github/workflows/unpack.yml'
+          unzip -o -q danimor-platform.zip -x '.github/*'
           rm danimor-platform.zip
           git config user.name unpack-bot; git config user.email bot@users.noreply.github.com
           git add -A; git commit -m 'بارگذاری اولیه‌ی پلتفرم' && git push
