@@ -1,0 +1,7 @@
+[Unit]
+Description=Danimor Hub backup
+[Service]
+Type=oneshot
+User=danimor
+Environment=HUB_CONFIG=/etc/danimor/config.json
+ExecStart=/usr/bin/python3 /opt/danimor/hub/server.py backup

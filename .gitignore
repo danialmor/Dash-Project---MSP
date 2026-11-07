@@ -1,0 +1,7 @@
+hub/data/
+hub/config.json
+*.sqlite3
+secret.key
+__pycache__/
+node_modules/
+s-*.png

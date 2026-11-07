@@ -1,0 +1,20 @@
+[Unit]
+Description=Danimor Hub (API مرکزی)
+After=network.target
+
+[Service]
+User=danimor
+Group=danimor
+WorkingDirectory=/opt/danimor/hub
+Environment=HUB_CONFIG=/etc/danimor/config.json
+ExecStart=/usr/bin/python3 /opt/danimor/hub/server.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/danimor
+
+[Install]
+WantedBy=multi-user.target

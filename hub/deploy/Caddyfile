@@ -1,0 +1,28 @@
+# /etc/caddy/Caddyfile — یک دامین، چند سایت. گواهی HTTPS را خود Caddy خودکار می‌گیرد.
+danimor.com, www.danimor.com {
+	encode zstd gzip
+	root * /var/www/danimor
+
+	# هاب (API) فقط از طریق /api/ و فقط روی همین سرور
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8787 {
+			flush_interval -1
+		}
+	}
+	handle {
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		X-Frame-Options SAMEORIGIN
+		Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	@sw path */sw.js
+	header @sw Cache-Control "no-cache"
+	@html path *.html /
+	header @html Cache-Control "no-cache"
+}
