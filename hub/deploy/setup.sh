@@ -16,8 +16,9 @@ chown -R deploy:deploy /opt/danimor /var/www/danimor; chown danimor:danimor /var
 echo "$DEPLOY_PUB" > /home/deploy/.ssh/authorized_keys; chown -R deploy:deploy /home/deploy/.ssh; chmod 700 /home/deploy/.ssh; chmod 600 /home/deploy/.ssh/authorized_keys
 # deploy فقط اجازه‌ی ری‌استارت همین سرویس را دارد
 echo 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart danimor-hub' > /etc/sudoers.d/danimor-deploy; chmod 440 /etc/sudoers.d/danimor-deploy
+# test_mode=true: ورود آزمایشی با Admin / Admin123 بدون اجبار به تغییر رمز. قبل از کار واقعی آن را false کنید.
 [ -f /etc/danimor/config.json ] || cat > /etc/danimor/config.json <<CFG
-{"host":"127.0.0.1","port":8787,"data_dir":"/var/lib/danimor","allowed_origins":["https://$DOMAIN"],"ai_url":""}
+{"host":"127.0.0.1","port":8787,"data_dir":"/var/lib/danimor","allowed_origins":["https://$DOMAIN"],"ai_url":"","test_mode":true}
 CFG
 chown root:danimor /etc/danimor/config.json; chmod 640 /etc/danimor/config.json
 echo "حالا یک‌بار deploy را از گیت‌هاب اجرا کنید (فایل‌ها به سرور می‌آیند) و سپس این اسکریپت را دوباره با --finish اجرا کنید." >&2
