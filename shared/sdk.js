@@ -27,6 +27,9 @@
   P.conflicts = function () { return this.ops.filter(function (o) { return o.state === 'conflict' }) };
   P.status = function () { return { online: this.online, pending: this.pending(), conflicts: this.conflicts().length, syncing: this.busy, lastSync: this.lastSync, error: this.err, loggedIn: !!this.token } };
   P.api = function (method, path, body) {
+    var me = this; if (method === 'GET') { me.fl = me.fl || {}; var k = path + '|' + me.token; if (me.fl[k]) return me.fl[k]; var pr = me.api0(method, path, body); me.fl[k] = pr; var done = function () { delete me.fl[k] }; pr.then(done, done); return pr } return me.api0(method, path, body);
+  };
+  P.api0 = function (method, path, body) {
     var me = this, h = { 'Content-Type': 'application/json', 'X-Device': me.device, 'X-Pending': String(me.pending()), 'X-Conflicts': String(me.conflicts().length) }; if (me.token) h.Authorization = 'Bearer ' + me.token;
     return fetch(me.base + path, { method: method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) }).then(function (r) {
       me.online = true; return r.json().catch(function () { return {} }).then(function (j) { if (r.status === 401 && me.token && path.indexOf('/auth/') < 0) { me.token = ''; me.emit('auth', 'expired') } if (!r.ok) { var e = new Error(j.error || ('http-' + r.status)); e.status = r.status; e.body = j; throw e } return j });
@@ -40,7 +43,7 @@
   P.me = function () { var me = this; return me.api('GET', '/me').then(function (r) { me.user = r.user; me.grants = r.grants; return r }) };
   P.directory = function () { return this.api('GET', '/directory?site=' + encodeURIComponent(this.site)).then(function (r) { return r.users }) };
   P.list = function (coll) {
-    var me = this, key = me.site + '/' + coll; return me.ready.then(function () { return me.api('GET', '/data/' + me.site + '/' + coll) }).then(function (r) {
+    var me = this, key = me.site + '/' + coll; return me.ready.then(function () { var all = [], seq = 0, page = function (after) { return me.api('GET', '/data/' + me.site + '/' + coll + '?limit=500' + (after ? '&after=' + encodeURIComponent(after) : '')).then(function (r) { all = all.concat(r.items); seq = seq || r.seq; return r.next ? page(r.next) : { items: all, seq: seq } }) }; return page('') }).then(function (r) {
       var c = me.cache[key] = { rev: {}, data: {} }; r.items.forEach(function (i) { c.rev[i.id] = i.rev; c.data[i.id] = i.data }); me.seq = me.seq || {}; me.seq[key] = r.seq; return { items: me.view(coll), stale: false };
     }, function (e) { if (e.offline) return { items: me.view(coll), stale: true }; throw e });
   };
@@ -79,6 +82,9 @@
     if (how === 'mine') { o.base_rev = o.server ? o.server.rev : 0; o.state = 'queued'; return me.store.put(o).then(function () { return me.flush() }) }
     var c = me.cache[o.site + '/' + o.coll] = me.cache[o.site + '/' + o.coll] || { rev: {}, data: {} }; if (c && o.server) { if (o.server.deleted) { delete c.data[o.id]; delete c.rev[o.id] } else { c.data[o.id] = o.server.data; c.rev[o.id] = o.server.rev } }
     me.ops = me.ops.filter(function (z) { return z !== o }); return me.store.del(op_id).then(function () { me.emit('status') });
+  };
+  P.aiStream = function (prompt, onText, system) { // پاسخ هوش مصنوعی کلمه‌به‌کلمه
+    var me = this; return fetch(me.base + '/ai/stream', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + me.token }, body: JSON.stringify({ prompt: prompt, system: system }) }).then(function (r) { if (!r.ok) { var e = new Error('http-' + r.status); e.status = r.status; throw e } var rd = r.body.getReader(), dec = new TextDecoder(), buf = '', full = ''; return (function pump() { return rd.read().then(function (x) { if (x.done) return full; buf += dec.decode(x.value, { stream: true }); var parts = buf.split('\n\n'); buf = parts.pop(); parts.forEach(function (ln) { if (ln.indexOf('data: ') !== 0) return; var j = JSON.parse(ln.slice(6)); if (j.t) { full += j.t; onText(j.t, full) } }); return pump() }) })() })
   };
   P.watch = function (coll, cb, ms) { // بروزرسانی زنده: ابتدا SSE، در غیر این صورت نظرسنجی
     var me = this, key = me.site + '/' + coll, stop = false, pull = function () { if (stop || !me.token) return Promise.resolve(); me.seq = me.seq || {}; return me.api('GET', '/data/' + me.site + '/' + coll + '?since=' + (me.seq[key] || 0)).then(function (r) { var c = me.cache[key] = me.cache[key] || { rev: {}, data: {} }; r.items.forEach(function (i) { if (i.deleted) { delete c.data[i.id]; delete c.rev[i.id] } else { c.data[i.id] = i.data; c.rev[i.id] = i.rev } }); me.seq[key] = r.seq; if (r.items.length) cb(me.view(coll)) }, function () { }) };
