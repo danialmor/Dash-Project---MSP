@@ -21,6 +21,8 @@ def load_config():
 
 SLUG = re.compile(r'^[a-z0-9][a-z0-9_-]{1,40}$'); CODE = re.compile(r'^[A-Za-z0-9_.-]{2,24}$'); ID = re.compile(r'^[A-Za-z0-9_.:-]{1,80}$')
 ROLES = ('admin', 'manager', 'member', 'viewer', 'service')
+DEFAULT_PIN = 'Admin123'   # رمز اولیه‌ی همه‌ی کاربران؛ با اولین ورود اجباراً عوض می‌شود
+WEAK = {'admin123', '12345678', 'password', '123456789', '00000000', 'qwerty123', 'admin1234', 'admin@123'}
 
 def now(): return time.time()
 def b64(b): return base64.urlsafe_b64encode(b).decode().rstrip('=')
@@ -61,8 +63,11 @@ class Hub:
     def log(self, user, action, target='', detail='', ip=''):
         self.q('INSERT INTO audit(ts,user,action,target,detail,ip) VALUES(?,?,?,?,?,?)', (now(), user, action, target, str(detail)[:500], ip))
     def hash_pin(self, pin, salt): return hashlib.scrypt(pin.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32).hex()
-    def set_pin(self, uid, pin):
-        salt = secrets.token_bytes(16); self.q('UPDATE users SET pin_hash=?,salt=?,tv=tv+1 WHERE id=?', (self.hash_pin(pin, salt), salt.hex(), uid))
+    def set_pin(self, uid, pin, mc=False):
+        salt = secrets.token_bytes(16); self.q('UPDATE users SET pin_hash=?,salt=?,tv=tv+1,meta=? WHERE id=?', (self.hash_pin(pin, salt), salt.hex(), json.dumps({'mc': bool(mc)}), uid))
+    def mc(self, u):
+        try: return bool(json.loads(u.get('meta') or '{}').get('mc'))
+        except Exception: return False
     def sign(self, payload):
         body = b64(json.dumps(payload, separators=(',', ':')).encode()); return body + '.' + b64(hmac.new(self.secret, body.encode(), hashlib.sha256).digest())
     def verify(self, tok):
@@ -236,11 +241,19 @@ class H(BaseHTTPRequestHandler):
             b = self.body(); u, err = hub.login(b.get('code', ''), b.get('pin', ''), str(b.get('device', ''))[:60], self.ip())
             if err == 'locked': return self.send(429, {'error': 'locked', 'retry_after': 600})
             if not u: return self.send(401, {'error': 'bad-credentials'})
-            return self.send(200, {'token': hub.issue(u), 'user': hub.pub(u), 'grants': hub.grants(u)})
+            return self.send(200, {'token': hub.issue(u), 'user': hub.pub(u), 'grants': hub.grants(u), 'must_change': hub.mc(u)})
         u = self.user()
         if not u: return self.send(401, {'error': 'unauthorized'})
         self.touch(u)
-        if seg == ['me']: return self.send(200, {'user': hub.pub(u), 'grants': hub.grants(u)})
+        if hub.mc(u) and seg not in (['me'], ['auth', 'change-pin']): return self.send(403, {'error': 'must-change-pin'})
+        if seg == ['auth', 'change-pin'] and m == 'POST':
+            b = self.body(); old = str(b.get('old', '')); new = str(b.get('new', ''))
+            if len(new) < 8 or new.lower() in WEAK or new.lower() == u['code'].lower() or new == old: return self.send(400, {'error': 'weak-pin'})
+            u2, err = hub.login(u['code'], old, 'change', self.ip())
+            if err == 'locked': return self.send(429, {'error': 'locked'})
+            if not u2: return self.send(401, {'error': 'bad-credentials'})
+            hub.set_pin(u['id'], new, False); hub.log(u['code'], 'pin-change', '', '', self.ip()); return self.send(200, {'token': hub.issue(dict(hub.one('SELECT * FROM users WHERE id=?', (u['id'],))))})
+        if seg == ['me']: return self.send(200, {'user': hub.pub(u), 'grants': hub.grants(u), 'must_change': hub.mc(u)})
         if seg == ['sites'] and m == 'GET':
             g = hub.grants(u); return self.send(200, {'sites': [s for s in hub.all('SELECT slug,title,path,kind FROM sites WHERE active=1') if s['slug'] in g]})
         if seg[0] == 'directory' and m == 'GET':
@@ -309,16 +322,16 @@ class H(BaseHTTPRequestHandler):
         if seg == ['export'] and m == 'GET': hub.log(adm['code'], 'export'); return self.send(200, hub.export())
         if seg == ['users']:
             if m == 'GET':
-                us = hub.all('SELECT id,code,name,role,active,created,last_login FROM users ORDER BY id'); gs = hub.all('SELECT * FROM grants')
-                for x in us: x['grants'] = {g['site']: g['role'] for g in gs if g['user_id'] == x['id']}
+                us = hub.all('SELECT id,code,name,role,active,created,last_login,meta FROM users ORDER BY id'); gs = hub.all('SELECT * FROM grants')
+                for x in us: x['grants'] = {g['site']: g['role'] for g in gs if g['user_id'] == x['id']}; x['must_change'] = hub.mc(x); del x['meta']
                 return self.send(200, {'users': us})
             if m == 'POST':
                 b = self.body(); code = str(b.get('code', '')).strip(); name = str(b.get('name', '')).strip(); role = b.get('role', 'member')
                 if not CODE.match(code) or not name or role not in ROLES: return self.send(400, {'error': 'invalid'})
                 if hub.one('SELECT 1 FROM users WHERE code=? COLLATE NOCASE', (code,)): return self.send(409, {'error': 'code-exists'})
-                pin = str(b.get('pin') or ''.join(secrets.choice('0123456789') for _ in range(6)))
+                pin = str(b.get('pin') or DEFAULT_PIN)
                 if len(pin) < 4: return self.send(400, {'error': 'pin-short'})
-                c = hub.q('INSERT INTO users(code,name,role,created) VALUES(?,?,?,?)', (code, name, role, now())); hub.set_pin(c.lastrowid, pin)
+                c = hub.q('INSERT INTO users(code,name,role,created) VALUES(?,?,?,?)', (code, name, role, now())); hub.set_pin(c.lastrowid, pin, mc=(pin == DEFAULT_PIN))
                 for s, r in (b.get('grants') or {}).items():
                     if hub.one('SELECT 1 FROM sites WHERE slug=?', (s,)): hub.q('INSERT OR REPLACE INTO grants VALUES(?,?,?)', (c.lastrowid, s, r if r in ROLES else 'member'))
                 hub.log(adm['code'], 'user-create', code); return self.send(200, {'id': c.lastrowid, 'code': code, 'pin': pin})
@@ -326,7 +339,7 @@ class H(BaseHTTPRequestHandler):
             uid = int(seg[1]); t = hub.one('SELECT * FROM users WHERE id=?', (uid,))
             if not t: return self.send(404, {'error': 'not-found'})
             if len(seg) == 3 and seg[2] == 'reset-pin' and m == 'POST':
-                pin = ''.join(secrets.choice('0123456789') for _ in range(6)); hub.set_pin(uid, pin); hub.log(adm['code'], 'pin-reset', t['code']); return self.send(200, {'pin': pin})
+                pin = DEFAULT_PIN; hub.set_pin(uid, pin, mc=True); hub.log(adm['code'], 'pin-reset', t['code']); return self.send(200, {'pin': pin})
             if len(seg) == 2 and m == 'PATCH':
                 b = self.body()
                 if t['id'] == adm['id'] and (b.get('active') is False or (b.get('role') and b['role'] != 'admin')): return self.send(400, {'error': 'self-lockout'})
@@ -361,9 +374,9 @@ def main():
     if a and a[0] == 'init':
         hub = Hub(cfg)
         if hub.one("SELECT 1 FROM users WHERE role='admin'"): print('مدیر از قبل وجود دارد.'); return
-        pin = ''.join(secrets.choice('0123456789') for _ in range(8)); c = hub.q("INSERT INTO users(code,name,role,created) VALUES('admin','مدیر سیستم','admin',?)", (now(),)); hub.set_pin(c.lastrowid, pin)
+        pin = DEFAULT_PIN; c = hub.q("INSERT INTO users(code,name,role,created) VALUES('Admin','مدیر سیستم','admin',?)", (now(),)); hub.set_pin(c.lastrowid, pin, mc=True)
         for slug, title, path, kind in (('msp-bi', 'کنترل پروژه و داشبورد', '/msp-bi/', 'app'), ('aide', 'آید · میز منشی', '/aide/', 'app'), ('admin', 'مرکز کنترل', '/admin/', 'system')): hub.q('INSERT OR IGNORE INTO sites VALUES(?,?,?,1,?,?)', (slug, title, path, kind, now()))
-        print('کد ورود: admin\nرمز اولیه (فقط همین یک‌بار نمایش داده می‌شود): ' + pin); return
+        print('کد ورود: Admin\nرمز اولیه: ' + pin + '\n(با اولین ورود، سیستم رمز جدید می‌خواهد؛ همان لحظه عوضش کنید.)'); return
     if a and a[0] == 'backup': print(Hub(cfg).backup()); return
     s = make_server(cfg); print('Danimor Hub %s روی %s:%d' % (VERSION, cfg['host'], cfg['port']), flush=True)
     try: s.serve_forever()
