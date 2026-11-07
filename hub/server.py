@@ -8,7 +8,7 @@ from urllib.parse import urlparse, parse_qs
 VERSION = '1.0.0'
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEF = dict(host='127.0.0.1', port=8787, data_dir=os.path.join(HERE, 'data'), static_dir='', allowed_origins=[],
-           token_ttl_days=30, ai_url='', ai_model='qwen2.5:7b', ai_rate_per_min=6, max_body=2 * 1024 * 1024)
+           token_ttl_days=30, ai_url='', ai_model='qwen2.5:7b', ai_rate_per_min=6, max_body=2 * 1024 * 1024, test_mode=False)
 
 def load_config():
     c = dict(DEF); p = os.environ.get('HUB_CONFIG', os.path.join(HERE, 'config.json'))
@@ -17,6 +17,8 @@ def load_config():
     for k in ('host', 'port', 'data_dir', 'static_dir', 'ai_url', 'ai_model'):
         v = os.environ.get('HUB_' + k.upper())
         if v: c[k] = int(v) if k == 'port' else v
+    tm = os.environ.get('HUB_TEST_MODE')
+    if tm: c['test_mode'] = tm.lower() in ('1', 'true', 'yes')
     return c
 
 SLUG = re.compile(r'^[a-z0-9][a-z0-9_-]{1,40}$'); CODE = re.compile(r'^[A-Za-z0-9_.-]{2,24}$'); ID = re.compile(r'^[A-Za-z0-9_.:-]{1,80}$')
@@ -65,6 +67,7 @@ class Hub:
     def hash_pin(self, pin, salt): return hashlib.scrypt(pin.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32).hex()
     def set_pin(self, uid, pin, mc=False):
         salt = secrets.token_bytes(16); self.q('UPDATE users SET pin_hash=?,salt=?,tv=tv+1,meta=? WHERE id=?', (self.hash_pin(pin, salt), salt.hex(), json.dumps({'mc': bool(mc)}), uid))
+    def mc_default(self): return not self.cfg.get('test_mode')   # در حالت آزمایشی رمز اولیه اجباراً عوض نمی‌شود
     def mc(self, u):
         try: return bool(json.loads(u.get('meta') or '{}').get('mc'))
         except Exception: return False
@@ -236,7 +239,7 @@ class H(BaseHTTPRequestHandler):
     def api(self, m, p):
         hub = self.hub; seg = [s for s in p[len('/api/v1'):].split('/') if s] if p.startswith('/api/v1') else None
         if seg is None: return self.send(404, {'error': 'not-found'})
-        if seg == ['health']: return self.send(200, {'ok': True, 'version': VERSION, 'time': now()})
+        if seg == ['health']: return self.send(200, {'ok': True, 'version': VERSION, 'time': now(), 'test_mode': bool(hub.cfg.get('test_mode'))})
         if seg == ['auth', 'login'] and m == 'POST':
             b = self.body(); u, err = hub.login(b.get('code', ''), b.get('pin', ''), str(b.get('device', ''))[:60], self.ip())
             if err == 'locked': return self.send(429, {'error': 'locked', 'retry_after': 600})
@@ -331,7 +334,7 @@ class H(BaseHTTPRequestHandler):
                 if hub.one('SELECT 1 FROM users WHERE code=? COLLATE NOCASE', (code,)): return self.send(409, {'error': 'code-exists'})
                 pin = str(b.get('pin') or DEFAULT_PIN)
                 if len(pin) < 4: return self.send(400, {'error': 'pin-short'})
-                c = hub.q('INSERT INTO users(code,name,role,created) VALUES(?,?,?,?)', (code, name, role, now())); hub.set_pin(c.lastrowid, pin, mc=(pin == DEFAULT_PIN))
+                c = hub.q('INSERT INTO users(code,name,role,created) VALUES(?,?,?,?)', (code, name, role, now())); hub.set_pin(c.lastrowid, pin, mc=(pin == DEFAULT_PIN and hub.mc_default()))
                 for s, r in (b.get('grants') or {}).items():
                     if hub.one('SELECT 1 FROM sites WHERE slug=?', (s,)): hub.q('INSERT OR REPLACE INTO grants VALUES(?,?,?)', (c.lastrowid, s, r if r in ROLES else 'member'))
                 hub.log(adm['code'], 'user-create', code); return self.send(200, {'id': c.lastrowid, 'code': code, 'pin': pin})
@@ -339,7 +342,7 @@ class H(BaseHTTPRequestHandler):
             uid = int(seg[1]); t = hub.one('SELECT * FROM users WHERE id=?', (uid,))
             if not t: return self.send(404, {'error': 'not-found'})
             if len(seg) == 3 and seg[2] == 'reset-pin' and m == 'POST':
-                pin = DEFAULT_PIN; hub.set_pin(uid, pin, mc=True); hub.log(adm['code'], 'pin-reset', t['code']); return self.send(200, {'pin': pin})
+                pin = DEFAULT_PIN; hub.set_pin(uid, pin, mc=hub.mc_default()); hub.log(adm['code'], 'pin-reset', t['code']); return self.send(200, {'pin': pin})
             if len(seg) == 2 and m == 'PATCH':
                 b = self.body()
                 if t['id'] == adm['id'] and (b.get('active') is False or (b.get('role') and b['role'] != 'admin')): return self.send(400, {'error': 'self-lockout'})
@@ -374,9 +377,9 @@ def main():
     if a and a[0] == 'init':
         hub = Hub(cfg)
         if hub.one("SELECT 1 FROM users WHERE role='admin'"): print('مدیر از قبل وجود دارد.'); return
-        pin = DEFAULT_PIN; c = hub.q("INSERT INTO users(code,name,role,created) VALUES('Admin','مدیر سیستم','admin',?)", (now(),)); hub.set_pin(c.lastrowid, pin, mc=True)
+        pin = DEFAULT_PIN; c = hub.q("INSERT INTO users(code,name,role,created) VALUES('Admin','مدیر سیستم','admin',?)", (now(),)); hub.set_pin(c.lastrowid, pin, mc=hub.mc_default())
         for slug, title, path, kind in (('msp-bi', 'کنترل پروژه و داشبورد', '/msp-bi/', 'app'), ('aide', 'آید · میز منشی', '/aide/', 'app'), ('admin', 'مرکز کنترل', '/admin/', 'system')): hub.q('INSERT OR IGNORE INTO sites VALUES(?,?,?,1,?,?)', (slug, title, path, kind, now()))
-        print('کد ورود: Admin\nرمز اولیه: ' + pin + '\n(با اولین ورود، سیستم رمز جدید می‌خواهد؛ همان لحظه عوضش کنید.)'); return
+        print('کد ورود: Admin\nرمز: ' + pin + ('\n(حالت آزمایشی: رمز اجباراً عوض نمی‌شود. قبل از کار واقعی test_mode را خاموش کنید.)' if cfg.get('test_mode') else '\n(با اولین ورود، سیستم رمز جدید می‌خواهد؛ همان لحظه عوضش کنید.)')); return
     if a and a[0] == 'backup': print(Hub(cfg).backup()); return
     s = make_server(cfg); print('Danimor Hub %s روی %s:%d' % (VERSION, cfg['host'], cfg['port']), flush=True)
     try: s.serve_forever()
