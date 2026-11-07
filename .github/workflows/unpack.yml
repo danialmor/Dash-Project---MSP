@@ -1,5 +1,8 @@
 name: unpack-bundle
-on: workflow_dispatch
+on:
+  push:
+    paths: ['danimor-platform.zip']
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -8,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          test -f danimor-platform.zip || { echo 'zip نیست'; exit 1; }
+          test -f danimor-platform.zip || { echo 'zip نیست'; exit 0; }
           unzip -o -q danimor-platform.zip -x '.github/*'
           rm danimor-platform.zip
           git config user.name unpack-bot; git config user.email bot@users.noreply.github.com
-          git add -A; git commit -m 'بارگذاری اولیه‌ی پلتفرم' && git push
+          git add -A; git commit -m 'به‌روزرسانی از بسته‌ی جدید' && git push || echo 'تغییری نبود'
