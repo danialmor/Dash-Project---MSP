@@ -49,7 +49,14 @@ class Hub:
         CREATE TABLE IF NOT EXISTS ops(op_id TEXT PRIMARY KEY, result TEXT, ts REAL);
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, user TEXT, action TEXT, target TEXT, detail TEXT, ip TEXT);
         CREATE TABLE IF NOT EXISTS clients(device TEXT PRIMARY KEY, user TEXT, last_seen REAL, pending INTEGER DEFAULT 0, conflicts INTEGER DEFAULT 0, ua TEXT, ip TEXT, site TEXT);
-        CREATE TABLE IF NOT EXISTS fails(k TEXT PRIMARY KEY, n INTEGER, first REAL);''')
+        CREATE TABLE IF NOT EXISTS fails(k TEXT PRIMARY KEY, n INTEGER, first REAL);
+        CREATE INDEX IF NOT EXISTS rec_sc ON records(site, coll, deleted, id);
+        CREATE INDEX IF NOT EXISTS aud_ts ON audit(ts);
+        CREATE INDEX IF NOT EXISTS aud_act ON audit(action, ts);
+        CREATE INDEX IF NOT EXISTS aud_usr ON audit(user, ts);
+        CREATE INDEX IF NOT EXISTS cl_seen ON clients(last_seen);
+        CREATE INDEX IF NOT EXISTS ops_ts ON ops(ts);
+        CREATE INDEX IF NOT EXISTS gr_site ON grants(site);''')
         sp = os.path.join(cfg['data_dir'], 'secret.key')
         if not os.path.exists(sp):
             fd = os.open(sp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600); os.write(fd, secrets.token_bytes(48)); os.close(fd)
@@ -150,13 +157,22 @@ class Hub:
         items = [{'id': r['id'], 'rev': r['rev'], 'deleted': bool(r['deleted']), 'data': None if r['deleted'] else json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']} for r in rows]
         mx = self.one('SELECT COALESCE(MAX(seq),0) m FROM changes WHERE site=? AND coll=?', (site, coll))['m']
         return 200, {'items': items, 'seq': rows[-1]['seq'] if rows else since, 'head': mx}
-    def snapshot(self, u, site, coll):
+    def snapshot(self, u, site, coll, limit=None, after=''):
         if not self.can(u, site, False): return 403, {'error': 'forbidden'}
-        rows = self.all('SELECT id,data,rev,updated,updated_by FROM records WHERE site=? AND coll=? AND deleted=0 ORDER BY id', (site, coll))
+        if limit:
+            limit = max(1, min(int(limit), 1000))
+            rows = self.all('SELECT id,data,rev,updated,updated_by FROM records WHERE site=? AND coll=? AND deleted=0 AND id>? ORDER BY id LIMIT ?', (site, coll, after, limit))
+        else: rows = self.all('SELECT id,data,rev,updated,updated_by FROM records WHERE site=? AND coll=? AND deleted=0 ORDER BY id', (site, coll))
         mx = self.one('SELECT COALESCE(MAX(seq),0) m FROM changes WHERE site=? AND coll=?', (site, coll))['m']
-        return 200, {'items': [{'id': r['id'], 'rev': r['rev'], 'data': json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']} for r in rows], 'seq': mx}
+        out = {'items': [{'id': r['id'], 'rev': r['rev'], 'data': json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']} for r in rows], 'seq': mx}
+        if limit: out['next'] = rows[-1]['id'] if len(rows) == limit else None
+        return 200, out
 
     def stats(self):
+        c = getattr(self, '_stc', None)
+        if c and now() - c[0] < 5: return c[1]
+        v = self._stats(); self._stc = (now(), v); return v
+    def _stats(self):
         g = lambda s: self.one(s)[0]
         dbp = os.path.join(self.cfg['data_dir'], 'hub.sqlite3')
         bk = os.path.join(self.cfg['data_dir'], 'backups'); last = max([os.path.getmtime(os.path.join(bk, f)) for f in os.listdir(bk)] or [0]) if os.path.isdir(bk) else 0
@@ -169,6 +185,7 @@ class Hub:
         bk = os.path.join(self.cfg['data_dir'], 'backups'); os.makedirs(bk, exist_ok=True)
         fn = os.path.join(bk, 'hub-' + time.strftime('%Y%m%d-%H%M%S') + '.sqlite3'); dst = sqlite3.connect(fn)
         with self.lock: self.db.backup(dst)
+        self.q('DELETE FROM ops WHERE ts<?', (now() - 30 * 86400,)); self.q('DELETE FROM audit WHERE ts<?', (now() - 365 * 86400,))
         dst.close(); files = sorted(os.listdir(bk))
         for old in files[:-30]: os.remove(os.path.join(bk, old))
         return os.path.basename(fn)
@@ -184,8 +201,14 @@ class H(BaseHTTPRequestHandler):
     def ip(self): return (self.headers.get('X-Forwarded-For') or self.client_address[0]).split(',')[0].strip()
     def send(self, code, obj=None, raw=None, ctype='application/json; charset=utf-8', extra=None):
         body = raw if raw is not None else json.dumps(obj, ensure_ascii=False).encode()
+        et = None
+        if code == 200 and getattr(self, '_etag', False) and ctype.startswith('application/json'):
+            et = '"' + hashlib.sha1(body).hexdigest()[:20] + '"'
+            if self.headers.get('If-None-Match') == et:
+                self.send_response(304); self.send_header('ETag', et); self.send_header('Cache-Control', 'private, no-cache'); self.send_header('Vary', 'Authorization'); self.send_header('Content-Length', '0'); self.end_headers(); return
         self.send_response(code); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(body)))
-        self.send_header('X-Content-Type-Options', 'nosniff'); self.send_header('Cache-Control', 'no-store' if ctype.startswith('application/json') else 'no-cache')
+        if et: self.send_header('ETag', et); self.send_header('Vary', 'Authorization')
+        self.send_header('X-Content-Type-Options', 'nosniff'); self.send_header('Cache-Control', 'private, no-cache' if et else ('no-store' if ctype.startswith('application/json') else 'no-cache'))
         self.send_header('Referrer-Policy', 'same-origin'); o = self.headers.get('Origin')
         if o and o in self.hub.cfg['allowed_origins']: self.send_header('Access-Control-Allow-Origin', o); self.send_header('Vary', 'Origin')
         for k, v in (extra or {}).items(): self.send_header(k, v)
@@ -212,7 +235,7 @@ class H(BaseHTTPRequestHandler):
     def do_PATCH(self): self.route('PATCH')
     def do_DELETE(self): self.route('DELETE')
     def route(self, m):
-        self._read = False
+        self._read = False; self._etag = False
         try:
             try: return self.route2(m)
             finally: self.drain()
@@ -258,20 +281,20 @@ class H(BaseHTTPRequestHandler):
             hub.set_pin(u['id'], new, False); hub.log(u['code'], 'pin-change', '', '', self.ip()); return self.send(200, {'token': hub.issue(dict(hub.one('SELECT * FROM users WHERE id=?', (u['id'],))))})
         if seg == ['me']: return self.send(200, {'user': hub.pub(u), 'grants': hub.grants(u), 'must_change': hub.mc(u)})
         if seg == ['sites'] and m == 'GET':
-            g = hub.grants(u); return self.send(200, {'sites': [s for s in hub.all('SELECT slug,title,path,kind FROM sites WHERE active=1') if s['slug'] in g]})
+            g = hub.grants(u); self._etag = True; return self.send(200, {'sites': [s for s in hub.all('SELECT slug,title,path,kind FROM sites WHERE active=1') if s['slug'] in g]})
         if seg[0] == 'directory' and m == 'GET':
             site = (parse_qs(urlparse(self.path).query).get('site') or [''])[0]
             if not hub.can(u, site, False): return self.send(403, {'error': 'forbidden'})
             rows = hub.all('SELECT u.id,u.code,u.name,u.role,g.role AS site_role FROM users u JOIN grants g ON g.user_id=u.id WHERE g.site=? AND u.active=1 AND u.role<>"service" ORDER BY u.name', (site,))
             adm = hub.all('SELECT id,code,name,role,"admin" AS site_role FROM users WHERE role="admin" AND active=1')
-            return self.send(200, {'users': rows + [a for a in adm if a['id'] not in {r['id'] for r in rows}]})
+            self._etag = True; return self.send(200, {'users': rows + [a for a in adm if a['id'] not in {r['id'] for r in rows}]})
         if seg[0] == 'data' and len(seg) in (3, 4):
             site, coll = seg[1], seg[2]
             if len(seg) == 3 and m == 'GET':
                 qs = parse_qs(urlparse(self.path).query)
                 if 'since' in qs: c, r = hub.feed(u, site, coll, int(qs['since'][0]), int((qs.get('limit') or ['500'])[0]))
-                else: c, r = hub.snapshot(u, site, coll)
-                return self.send(c, r)
+                else: c, r = hub.snapshot(u, site, coll, (qs.get('limit') or [None])[0], (qs.get('after') or [''])[0])
+                self._etag = True; return self.send(c, r)
             if len(seg) == 4 and m in ('PUT', 'DELETE'):
                 b = self.body(); c, r = hub.put(u, site, coll, seg[3], b.get('data'), b.get('base_rev', 0), b.get('op_id'), delete=(m == 'DELETE'))
                 if c == 200: hub.log(u['code'], 'put' if m == 'PUT' else 'del', '%s/%s/%s' % (site, coll, seg[3]), '', self.ip())
@@ -284,6 +307,7 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {'results': out})
         if seg == ['stream'] and m == 'GET': return self.stream(u)
         if seg == ['ai'] and m == 'POST': return self.ai(u)
+        if seg == ['ai', 'stream'] and m == 'POST': return self.ai(u, stream=True)
         if seg[0] == 'admin':
             if u['role'] != 'admin': return self.send(403, {'error': 'forbidden'})
             return self.admin(m, seg[1:], u)
@@ -300,7 +324,7 @@ class H(BaseHTTPRequestHandler):
                 else: self.wfile.write(b': ping\n\n'); self.wfile.flush()
                 time.sleep(1.5)
         except Exception: pass
-    def ai(self, u):
+    def ai(self, u, stream=False):
         hub = self.hub; b = self.body(); url = hub.cfg['ai_url']
         if not url: return self.send(501, {'error': 'ai-not-configured'})
         h = [t for t in hub.ai_hits.get(u['code'], []) if now() - t < 60]
@@ -309,6 +333,22 @@ class H(BaseHTTPRequestHandler):
         msgs = []
         if b.get('system'): msgs.append({'role': 'system', 'content': str(b['system'])[:4000]})
         msgs.append({'role': 'user', 'content': str(b.get('prompt', ''))[:12000]})
+        if stream:  # کلمه‌به‌کلمه: کاربر منتظر پایان کل پاسخ نمی‌ماند
+            try:
+                req = urllib.request.Request(url.rstrip('/') + '/api/chat', json.dumps({'model': hub.cfg['ai_model'], 'messages': msgs, 'stream': True}).encode(), {'Content-Type': 'application/json'})
+                resp = urllib.request.urlopen(req, timeout=120)
+            except Exception: return self.send(502, {'error': 'ai-unreachable'})
+            self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.send_header('Cache-Control', 'no-store'); self.send_header('X-Accel-Buffering', 'no'); self.send_header('Connection', 'close'); self.end_headers(); self.close_connection = True
+            try:
+                for line in resp:
+                    line = line.strip()
+                    if not line: continue
+                    j = json.loads(line); t = (j.get('message') or {}).get('content', '')
+                    if t: self.wfile.write(('data: ' + json.dumps({'t': t}, ensure_ascii=False) + '\n\n').encode()); self.wfile.flush()
+                    if j.get('done'): break
+                self.wfile.write(b'data: {"done":true}\n\n'); self.wfile.flush(); hub.log(u['code'], 'ai-stream', '', len(str(b.get('prompt', ''))), self.ip())
+            except Exception: pass
+            return
         try:
             req = urllib.request.Request(url.rstrip('/') + '/api/chat', json.dumps({'model': hub.cfg['ai_model'], 'messages': msgs, 'stream': False}).encode(), {'Content-Type': 'application/json'})
             r = json.loads(urllib.request.urlopen(req, timeout=120).read()); hub.log(u['code'], 'ai', '', len(str(b.get('prompt', ''))), self.ip())
@@ -319,8 +359,8 @@ class H(BaseHTTPRequestHandler):
         if seg == ['stats']: return self.send(200, hub.stats())
         if seg == ['audit']:
             qs = parse_qs(urlparse(self.path).query); lim = min(int((qs.get('limit') or ['100'])[0]), 500); a = (qs.get('action') or [''])[0]
-            return self.send(200, {'items': hub.all('SELECT * FROM audit ' + ('WHERE action=? ' if a else '') + 'ORDER BY id DESC LIMIT ?', ((a,) if a else ()) + (lim,))})
-        if seg == ['clients']: return self.send(200, {'items': hub.all('SELECT * FROM clients ORDER BY last_seen DESC LIMIT 200')})
+            return self.send(200, {'items': hub.all('SELECT id,ts,user,action,target,detail,ip FROM audit ' + ('WHERE action=? ' if a else '') + 'ORDER BY id DESC LIMIT ?', ((a,) if a else ()) + (lim,))})
+        if seg == ['clients']: return self.send(200, {'items': hub.all('SELECT device,user,last_seen,pending,conflicts,ua,ip FROM clients ORDER BY last_seen DESC LIMIT 200')})
         if seg == ['backup'] and m == 'POST': n = hub.backup(); hub.log(adm['code'], 'backup', n); return self.send(200, {'file': n})
         if seg == ['export'] and m == 'GET': hub.log(adm['code'], 'export'); return self.send(200, hub.export())
         if seg == ['users']:
