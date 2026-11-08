@@ -2,52 +2,172 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<meta name="theme-color" content="#0b1a1e">
-<title>danimor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#050a1f">
+<title>Danimor · اکوسیستم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Vazirmatn:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <style>
-:root{--bg:#0b1a1e;--ink:#eaf3f1;--lime:#a6d63a;--teal:#2fb7a6;--dim:#7f9a98}
-*{box-sizing:border-box;margin:0}
-html,body{height:100%;background:var(--bg);overflow:hidden}
-body{display:grid;place-items:center;color:var(--ink);font-family:"Vazirmatn",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;position:relative}
-.glow{position:fixed;inset:-20%;background:radial-gradient(40% 40% at 30% 30%,rgba(47,183,166,.20),transparent 70%),radial-gradient(35% 35% at 75% 70%,rgba(166,214,58,.13),transparent 70%);animation:drift 14s ease-in-out infinite alternate;pointer-events:none}
-@keyframes drift{to{transform:translate3d(4%,3%,0) scale(1.08)}}
-.grid{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(60% 60% at 50% 50%,#000,transparent 75%);mask-image:radial-gradient(60% 60% at 50% 50%,#000,transparent 75%);opacity:0;animation:fade 2s .4s forwards}
-main{position:relative;display:grid;justify-items:center;gap:clamp(18px,3.4vh,32px);padding:24px}
-svg{width:clamp(132px,22vmin,210px);height:auto;overflow:visible}
-.frame{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:640;stroke-dashoffset:640;animation:draw 1.7s cubic-bezier(.6,.05,.2,1) .2s forwards}
-.bar{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);animation:rise .9s cubic-bezier(.2,.9,.25,1.05) forwards}
-.b1{fill:var(--teal);animation-delay:1.35s}.b2{fill:var(--lime);animation-delay:1.55s}.b3{fill:var(--ink);animation-delay:1.75s}
-.arm{fill:none;stroke:var(--lime);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:120;stroke-dashoffset:120;animation:draw .9s ease-out 2.2s forwards}
-.hook{stroke:var(--lime);stroke-width:2;stroke-linecap:round;opacity:0;transform-box:fill-box;transform-origin:50% 0;animation:fade .4s 3s forwards,swing 3.6s ease-in-out 3.4s infinite alternate}
-.dot{fill:var(--lime);opacity:0;animation:fade .4s 3s forwards,pulse 2.6s ease-in-out 3.4s infinite}
-.word{display:flex;direction:ltr;gap:.34em;font-weight:300;font-size:clamp(20px,4.2vmin,34px);letter-spacing:.34em;text-transform:uppercase;padding-left:.34em}
-.word span{opacity:0;transform:translateY(14px);filter:blur(6px);animation:letter .9s cubic-bezier(.2,.8,.2,1) forwards}
-.rule{height:1px;width:0;background:linear-gradient(90deg,transparent,var(--dim),transparent);animation:rule 1.4s cubic-bezier(.2,.8,.2,1) 3.3s forwards}
-@keyframes draw{to{stroke-dashoffset:0}}@keyframes rise{to{transform:scaleY(1)}}@keyframes fade{to{opacity:1}}
-@keyframes letter{to{opacity:1;transform:none;filter:none}}@keyframes rule{to{width:min(260px,52vw)}}
-@keyframes swing{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}@keyframes pulse{50%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}.glow{animation:none}}
+:root{--bg:#050a1f;--ink:#eaf1ff;--muted:#8ea3c7;--line:rgba(126,160,255,.18);--core2:#7cc4ff;--ok:#3ddc97;--soon:#f2b640;
+ --R:min(36vmin,300px);--node:clamp(46px,9vmin,78px);
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{background:var(--bg);color:var(--ink);scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;background:
+ radial-gradient(60vmax 50vmax at 50% 38%,rgba(47,123,255,.22),transparent 60%),
+ radial-gradient(40vmax 30vmax at 85% 95%,rgba(0,90,255,.35),transparent 70%),
+ radial-gradient(30vmax 25vmax at 10% 10%,rgba(124,58,237,.18),transparent 70%),var(--bg);overflow-x:hidden}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(18px,4vw,40px) clamp(14px,4vw,32px) 48px}
+.hero{display:grid;place-items:center;padding-top:clamp(8px,3vh,28px)}
+.hub{position:relative;width:calc(var(--R)*2 + var(--node) + 120px);max-width:100%;aspect-ratio:1;display:grid;place-items:center}
+.ring{position:absolute;width:calc(var(--R)*2);aspect-ratio:1;border-radius:50%;
+ background:conic-gradient(from 0deg,#2f7bff,#22d3ee,#3ddc97,#a3e635,#f2b640,#fb7185,#e11d74,#7c3aed,#2f7bff);
+ -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));
+ filter:drop-shadow(0 0 10px rgba(47,123,255,.7)) drop-shadow(0 0 22px rgba(124,58,237,.35));animation:spin 60s linear infinite}
+@keyframes spin{to{transform:rotate(1turn)}}
+svg.links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+svg.links line{stroke:url(#lg);stroke-width:.35;stroke-linecap:round;opacity:.35;transition:opacity .25s,stroke-width .25s}
+svg.links line.flow{stroke:#9fd2ff;stroke-dasharray:1.2 7;stroke-width:.55;opacity:0;animation:flow 2.6s linear infinite}
+svg.links line.on{opacity:1;stroke-width:.7}
+svg.links line.flow.on{opacity:1}
+@keyframes flow{to{stroke-dashoffset:-16.4}}
+.core{position:relative;z-index:2;width:calc(var(--R)*1.12);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;align-content:center;text-align:center;
+ background:radial-gradient(circle at 50% 30%,#1c3d9e 0%,#0b1e5c 45%,#05103a 75%);
+ box-shadow:0 0 0 2px rgba(124,196,255,.55),0 0 40px rgba(47,123,255,.65),inset 0 0 50px rgba(47,123,255,.45),inset 0 -14px 40px rgba(0,0,0,.6)}
+.core::after{content:"";position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle at 50% 18%,rgba(255,255,255,.22),transparent 45%);pointer-events:none}
+.mark{width:58%;height:auto;display:block}
+.word{font-family:Syncopate,"Arial Black",sans-serif;font-weight:700;letter-spacing:.14em;font-size:calc(var(--R)*.105);margin:2% 0 0;color:#e8eeff;
+ text-shadow:0 1px 0 #9aa9cf,0 2px 0 #6c7aa3,0 0 18px rgba(124,196,255,.55);direction:ltr}
+.cap{margin:3% 12% 0;font-size:calc(var(--R)*.048);color:var(--core2);min-height:1.4em;line-height:1.4}
+.cap b{color:var(--ink);font-weight:700}
+.node{position:absolute;top:50%;left:50%;z-index:3;width:var(--node);height:var(--node);margin:calc(var(--node)/-2) 0 0 calc(var(--node)/-2);
+ transform:rotate(var(--a)) translate(var(--R)) rotate(calc(-1*var(--a)));border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#fff;cursor:pointer;border:0;padding:0;font:inherit;
+ background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.55),transparent 38%),radial-gradient(circle at 50% 60%,var(--c1),var(--c2));
+ box-shadow:0 0 0 2px rgba(255,255,255,.18),0 0 18px var(--c1),0 0 38px color-mix(in srgb,var(--c1) 55%,transparent);transition:box-shadow .2s,filter .2s}
+.node svg{width:46%;height:46%;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+.node .lb{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;font-weight:700;color:var(--ink);text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}
+.node .lb small{display:block;font-weight:400;font-size:10.5px;color:var(--muted);text-align:center}
+.node:hover,.node:focus-visible,.node.on{filter:brightness(1.15);box-shadow:0 0 0 3px #fff,0 0 26px var(--c1),0 0 60px var(--c1)}
+.node:focus-visible{outline:none}
+.node .st{position:absolute;top:-2px;inset-inline-end:-2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);background:var(--soon)}
+.node.live .st{background:var(--ok)}
+.layer{text-align:center;margin:clamp(6px,2vh,18px) auto 0;max-width:560px}
+.layer svg{width:34px;height:34px;stroke:var(--ok);fill:none;stroke-width:1.8}
+.layer h2{font-family:Syncopate,"Arial Black",sans-serif;font-size:clamp(14px,2.2vw,19px);letter-spacing:.06em;margin:6px 0 4px;direction:ltr}
+.layer p{margin:0;color:var(--muted);font-size:14px}
+.stack{margin:6px 0 0;color:var(--muted);font-size:12.5px;direction:ltr}
+.list{margin:clamp(28px,6vh,56px) auto 0;max-width:980px;border-top:1px solid var(--line);padding-top:22px}
+.list h3{margin:0 0 4px;font-size:18px}
+.list>p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
+.mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 40px;margin:0;padding:0;list-style:none}
+.mods li{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid var(--line)}
+.mods .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 50% 60%,var(--c1),var(--c2));box-shadow:0 0 14px color-mix(in srgb,var(--c1) 60%,transparent)}
+.mods .ic svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mods b{display:block;font-size:15px}.mods small{color:var(--muted);font-size:12.5px}
+.pill{font-size:11.5px;font-weight:700;border-radius:99px;padding:4px 10px;white-space:nowrap;text-decoration:none}
+.pill.live{background:rgba(61,220,151,.14);color:var(--ok);border:1px solid rgba(61,220,151,.4)}
+.pill.live:hover,.pill.live:focus-visible{background:rgba(61,220,151,.26);outline:2px solid var(--ok);outline-offset:2px}
+.pill.soon{color:var(--soon);border:1px solid rgba(242,182,64,.35)}
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:34px;direction:ltr}
+@media (max-width:640px){:root{--R:34vw;--node:42px}.hub{width:calc(var(--R)*2 + var(--node) + 18px)}.node .lb{display:none}.mods{grid-template-columns:1fr}.core{width:calc(var(--R)*1.22)}.word{font-size:calc(var(--R)*.13)}.cap{font-size:12px}}
+@media (prefers-reduced-motion:reduce){.ring,svg.links line.flow{animation:none}.node{transition:none}}
 </style>
 </head>
 <body>
-<div class="glow"></div><div class="grid"></div>
-<main role="img" aria-label="danimor">
-  <svg viewBox="0 0 200 200" aria-hidden="true">
-    <rect class="frame" x="14" y="14" width="172" height="172" rx="40"/>
-    <rect class="bar b1" x="52" y="98" width="22" height="58" rx="5"/>
-    <rect class="bar b2" x="89" y="72" width="22" height="84" rx="5"/>
-    <rect class="bar b3" x="126" y="112" width="22" height="44" rx="5"/>
-    <path class="arm" d="M44 62 L150 62 L150 50"/>
-    <line class="hook" x1="130" y1="62" x2="130" y2="84"/>
-    <circle class="dot" cx="130" cy="89" r="4.2"/>
-  </svg>
-  <div class="word" id="w" aria-hidden="true"></div>
-  <div class="rule"></div>
+<main class="wrap">
+ <section class="hero" aria-label="اکوسیستم Danimor">
+  <div class="hub" id="hub">
+   <div class="ring" aria-hidden="true"></div>
+   <svg class="links" id="links" viewBox="-100 -100 200 200" aria-hidden="true"><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs></svg>
+   <div class="core" role="img" aria-label="Danimor، هسته‌ی مرکزی هوشمند">
+    <svg class="mark" viewBox="0 0 200 170" aria-hidden="true">
+     <defs>
+      <linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#c9d6f2"/><stop offset="1" stop-color="#7d8fbd"/></linearGradient>
+      <linearGradient id="og" x1="0" x2="1"><stop offset="0" stop-color="#1e6bff" stop-opacity=".2"/><stop offset=".6" stop-color="#3fa0ff"/><stop offset="1" stop-color="#9fd2ff"/></linearGradient>
+      <radialGradient id="bg2" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#e6f4ff"/><stop offset=".4" stop-color="#4aa3ff"/><stop offset="1" stop-color="#0b4fd8"/></radialGradient>
+     </defs>
+     <path d="M62 22h40c38 0 64 25 64 62s-26 62-64 62H62zM90 50v68h12c21 0 35-13 35-34s-14-34-35-34z" fill="url(#dg)" fill-rule="evenodd"/>
+     <path d="M62 22 90 50v68l-28 28z" fill="#9fb0d8" opacity=".55"/>
+     <ellipse cx="104" cy="96" rx="92" ry="30" transform="rotate(-18 104 96)" fill="none" stroke="url(#og)" stroke-width="7" stroke-linecap="round" stroke-dasharray="330 60"/>
+     <circle cx="176" cy="62" r="11" fill="url(#bg2)"/>
+    </svg>
+    <p class="word">DANIMOR</p>
+    <p class="cap" id="cap" aria-live="polite">هسته‌ی مرکزی هوشمند</p>
+   </div>
+  </div>
+  <div class="layer">
+   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M12 7.4v4.6M12 12l-6 4.7M12 12l6 4.7"/></svg>
+   <h2>Smart Integration Layer</h2>
+   <p>ارتباط خودکار اطلاعات بین همه‌ی ماژول‌ها</p>
+   <p class="stack">Identity · API · Database · AI · Permissions</p>
+  </div>
+ </section>
+ <section class="list" aria-labelledby="mh">
+  <h3 id="mh">ماژول‌های اکوسیستم</h3>
+  <p>همه‌ی ماژول‌ها از یک ورود، یک پایگاه‌داده و یک سامانه‌ی دسترسی استفاده می‌کنند.</p>
+  <ul class="mods" id="mods"></ul>
+ </section>
+ <footer>Danimor © <span id="yr"></span></footer>
 </main>
 <script>
-(function(){var w=document.getElementById('w'),t='DANIMOR';for(var i=0;i<t.length;i++){var s=document.createElement('span');s.textContent=t[i];s.style.animationDelay=(2.5+i*.11)+'s';w.appendChild(s)}})();
+(function(){
+ var I={
+  crane:'<path d="M6 21V4M3 21h6M6 4h14M6 4 3 7M10 4v2M18 4v6M16.5 10h3v2.5h-3zM12 21v-7h8v7M14 17h1M17 17h1"/>',
+  chat:'<path d="M4 5h11v8H9l-4 3v-3H4zM15 9h5v8h-1v3l-3-3h-5v-2"/>',
+  tie:'<circle cx="12" cy="7" r="3.2"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2M12 14l-1.4 2.4L12 21l1.4-4.6z"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM8 15v-3M12 15v-5M16 15v-2"/>',
+  cursor:'<path d="M5 4l13 6-5.5 1.8L10.7 18z"/><path d="M13 13l5 5"/>',
+  hand:'<path d="M2 12l4-4 4 2 3-2 3 1 4-1 2 4M2 12l5 5 2-1 2 2 2-1 2 1 3-3 2-4M9 13l2 2M12 12l2 2"/>',
+  cap:'<path d="M2 9l10-4 10 4-10 4zM6 11v4c0 1.6 2.7 3 6 3s6-1.4 6-3v-4M22 9v5"/>',
+  users:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20a6 6 0 0 1 12 0M14.5 15a4.5 4.5 0 0 1 6.5 4"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  chart:'<path d="M4 20V14M9 20V10M14 20v-6M19 20V7M4 10l5-4 5 3 6-5"/>',
+  pal:'<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.4-2-.5-1.2.3-2.5 1.6-2.5H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
+  bld:'<path d="M4 21V7l7-3v17M11 21h9V10l-9-3M7 9v.01M7 12v.01M7 15v.01M14 12h3M14 15h3M14 18h3"/>'
+ };
+ var M=[
+  ['کنترل پروژه','زمان‌بندی و مدیریت','crane','#1f8fff','#0a3fb3','/msp-bi/'],
+  ['آموزش','یادگیری و توسعه','cap','#14c79a','#047857',''],
+  ['مسنجر مستقل','ارتباطات سازمانی','chat','#8b5cf6','#4c1d95','/msp-bi/'],
+  ['کنترل پنل کاربران','حساب‌ها و دسترسی‌ها','users','#fb923c','#c2410c','/admin/'],
+  ['مدیرعامل و منشی','مدیریت و تصمیم‌گیری','tie','#22d3ee','#0e7490','/aide/'],
+  ['نامه‌نگاری و ایمیل','مکاتبات هوشمند','mail','#f43f5e','#9f1239','/msp-bi/'],
+  ['فایل منیجر','مدیریت اسناد و فایل‌ها','folder','#38bdf8','#1d4ed8','/msp-bi/'],
+  ['پرتفولیو','تحلیل فعالیت و شخصیت','chart','#a855f7','#6d28d9',''],
+  ['موس مشترک','تعامل هم‌زمان','cursor','#06b6d4','#155e75',''],
+  ['صفحه طراح','طراحی و خلاقیت','pal','#fbbf24','#d97706',''],
+  ['مشتریان','CRM و ارتباط مشتری','hand','#10b981','#065f46',''],
+  ['فضای اختصاصی شرکت','محیط سازمانی','bld','#7c3aed','#3730a3','']
+ ];
+ var hub=document.getElementById('hub'),links=document.getElementById('links'),cap=document.getElementById('cap'),mods=document.getElementById('mods'),NS='http://www.w3.org/2000/svg',CAP0=cap.innerHTML;
+ M.forEach(function(m,i){
+  var a=-90+i*30,live=!!m[5],el=document.createElement(live?'a':'button');
+  if(live)el.href=m[5];else el.type='button';
+  el.className='node'+(live?' live':'');el.style.setProperty('--a',a+'deg');el.style.setProperty('--c1',m[3]);el.style.setProperty('--c2',m[4]);
+  el.setAttribute('aria-label',m[0]+'، '+m[1]+(live?'':' (به‌زودی)'));el.dataset.i=i;
+  el.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+I[m[2]]+'</svg><span class="st" aria-hidden="true"></span><span class="lb">'+m[0]+'<small>'+m[1]+'</small></span>';
+  hub.appendChild(el);
+  ['','flow'].forEach(function(c){var l=document.createElementNS(NS,'line');if(c)l.setAttribute('class','flow');l.dataset.i=i;l.dataset.a=a;l.dataset.f=c?1:0;links.appendChild(l)});
+  var li=document.createElement('li');li.style.setProperty('--c1',m[3]);li.style.setProperty('--c2',m[4]);
+  li.innerHTML='<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">'+I[m[2]]+'</svg></span><span><b>'+m[0]+'</b><small>'+m[1]+'</small></span>'+(live?'<a class="pill live" href="'+m[5]+'">ورود</a>':'<span class="pill soon">به‌زودی</span>');
+  mods.appendChild(li);
+ });
+ function place(){var box=hub.getBoundingClientRect(),node=hub.querySelector('.node'),r=0;if(node){var nb=node.getBoundingClientRect(),cx=box.left+box.width/2,cy=box.top+box.height/2;r=Math.hypot(nb.left+nb.width/2-cx,nb.top+nb.height/2-cy)}var k=200/box.width,rr=r*k;
+  [].forEach.call(links.querySelectorAll('line'),function(l){var a=l.dataset.a*Math.PI/180,x=Math.cos(a)*rr,y=Math.sin(a)*rr,f=l.dataset.f==='1';l.setAttribute('x1',f?0:x);l.setAttribute('y1',f?0:y);l.setAttribute('x2',f?x:0);l.setAttribute('y2',f?y:0)})}
+ place();addEventListener('resize',place);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(place);
+ function show(i){[].forEach.call(hub.querySelectorAll('.node'),function(n){n.classList.toggle('on',+n.dataset.i===i)});[].forEach.call(links.querySelectorAll('line'),function(l){l.classList.toggle('on',+l.dataset.i===i)});
+  cap.innerHTML=i<0?CAP0:'<b>'+M[i][0]+'</b><br>'+(M[i][5]?'متصل به هسته':'به‌زودی')}
+ hub.addEventListener('mouseover',function(e){var n=e.target.closest('.node');if(n)show(+n.dataset.i)});
+ hub.addEventListener('mouseleave',function(){show(-1)});
+ hub.addEventListener('focusin',function(e){var n=e.target.closest('.node');if(n)show(+n.dataset.i)});
+ hub.addEventListener('focusout',function(){show(-1)});
+ hub.addEventListener('click',function(e){var n=e.target.closest('button.node');if(n)show(+n.dataset.i)});
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){var k=0,t=setInterval(function(){[].forEach.call(links.querySelectorAll('line.flow'),function(l){l.classList.toggle('on',+l.dataset.i===k)});if(++k>M.length){clearInterval(t);[].forEach.call(links.querySelectorAll('line.flow'),function(l){l.classList.remove('on')})}},260)}
+ document.getElementById('yr').textContent=new Date().getFullYear();
+})();
 </script>
 </body>
 </html>
