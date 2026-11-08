@@ -23,6 +23,27 @@ def load_config():
 
 SLUG = re.compile(r'^[a-z0-9][a-z0-9_-]{1,40}$'); CODE = re.compile(r'^[A-Za-z0-9_.-]{2,24}$'); ID = re.compile(r'^[A-Za-z0-9_.:-]{1,80}$')
 ROLES = ('admin', 'manager', 'member', 'viewer', 'service')
+EVT = re.compile(r'^[a-z][a-z0-9_.-]{1,59}$')
+# Ecosystem module registry seed: (slug, name_fa, name_en, status, path, site, color, icon). 'site' = which site grant gives access.
+MODULES = (
+    ('project-control', 'کنترل پروژه', 'Project Control', 'live', '/msp-bi/', 'msp-bi', '#1f8fff', 'crane'),
+    ('training', 'آموزش', 'Training', 'planned', '', '', '#14c79a', 'cap'),
+    ('messenger', 'مسنجر مستقل', 'Messenger', 'live', '/msp-bi/', 'msp-bi', '#8b5cf6', 'chat'),
+    ('users-panel', 'کنترل پنل کاربران', 'User Control Panel', 'live', '/admin/', 'admin', '#fb923c', 'users'),
+    ('executive-desk', 'مدیرعامل و منشی', 'CEO & Secretary Desk', 'live', '/aide/', 'aide', '#22d3ee', 'tie'),
+    ('mail', 'نامه‌نگاری و ایمیل', 'Letters & Email', 'live', '/msp-bi/', 'msp-bi', '#f43f5e', 'mail'),
+    ('file-manager', 'فایل منیجر', 'File Manager', 'live', '/msp-bi/', 'msp-bi', '#38bdf8', 'folder'),
+    ('portfolio', 'پرتفولیو', 'Portfolio', 'planned', '', '', '#a855f7', 'chart'),
+    ('shared-cursor', 'موس مشترک', 'Shared Cursor', 'planned', '', '', '#06b6d4', 'cursor'),
+    ('designer', 'صفحه طراح', 'Designer Workspace', 'planned', '', '', '#fbbf24', 'pal'),
+    ('crm', 'مشتریان', 'CRM', 'planned', '', '', '#10b981', 'hand'),
+    ('company-space', 'فضای اختصاصی شرکت', 'Company Space', 'planned', '', '', '#7c3aed', 'bld'),
+)
+MOD_SUMMARY = {
+    'project-control': 'Scheduling, WBS, delays, daily reports, dashboards (msp-bi).', 'messenger': 'Internal chat; currently inside msp-bi.',
+    'users-panel': 'Accounts, roles, site grants (admin control center).', 'executive-desk': 'CEO and secretary desk: calendars, meetings, notes (aide).',
+    'mail': 'Formal letters with approval routes; currently inside msp-bi.', 'file-manager': 'Project documents and MSP files; currently inside msp-bi.',
+}
 DEFAULT_PIN = 'Admin123'   # رمز اولیه‌ی همه‌ی کاربران؛ با اولین ورود اجباراً عوض می‌شود
 WEAK = {'admin123', '12345678', 'password', '123456789', '00000000', 'qwerty123', 'admin1234', 'admin@123'}
 
@@ -56,7 +77,17 @@ class Hub:
         CREATE INDEX IF NOT EXISTS aud_usr ON audit(user, ts);
         CREATE INDEX IF NOT EXISTS cl_seen ON clients(last_seen);
         CREATE INDEX IF NOT EXISTS ops_ts ON ops(ts);
-        CREATE INDEX IF NOT EXISTS gr_site ON grants(site);''')
+        CREATE INDEX IF NOT EXISTS gr_site ON grants(site);
+        CREATE TABLE IF NOT EXISTS modules(slug TEXT PRIMARY KEY, name_fa TEXT NOT NULL, name_en TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'planned',
+          path TEXT DEFAULT '', site TEXT DEFAULT '', color TEXT DEFAULT '', icon TEXT DEFAULT '', ord INTEGER DEFAULT 0, summary_en TEXT DEFAULT '', updated REAL);
+        CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, module TEXT NOT NULL, type TEXT NOT NULL, entity TEXT DEFAULT '', entity_id TEXT DEFAULT '',
+          project TEXT DEFAULT '', actor TEXT DEFAULT '', payload TEXT DEFAULT '{}');
+        CREATE INDEX IF NOT EXISTS ev_mod ON events(module, seq);
+        CREATE INDEX IF NOT EXISTS ev_prj ON events(project, seq);
+        CREATE TABLE IF NOT EXISTS relations(id INTEGER PRIMARY KEY AUTOINCREMENT, a_module TEXT, a_type TEXT, a_id TEXT, b_module TEXT, b_type TEXT, b_id TEXT, rel TEXT, ts REAL, by TEXT,
+          UNIQUE(a_module, a_type, a_id, b_module, b_type, b_id, rel));
+        CREATE INDEX IF NOT EXISTS rl_a ON relations(a_module, a_type, a_id);
+        CREATE INDEX IF NOT EXISTS rl_b ON relations(b_module, b_type, b_id);''')
         sp = os.path.join(cfg['data_dir'], 'secret.key')
         if not os.path.exists(sp):
             fd = os.open(sp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600); os.write(fd, secrets.token_bytes(48)); os.close(fd)
@@ -168,6 +199,52 @@ class Hub:
         if limit: out['next'] = rows[-1]['id'] if len(rows) == limit else None
         return 200, out
 
+    # ── Ecosystem core: module registry, event bus (Smart Integration Layer), cross-module relations ──
+    def seed_modules(self):
+        for i, m in enumerate(MODULES):
+            self.q('INSERT OR IGNORE INTO modules(slug,name_fa,name_en,status,path,site,color,icon,ord,summary_en,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)', m + (i, MOD_SUMMARY.get(m[0], ''), now()))
+    def module(self, slug): return self.one('SELECT * FROM modules WHERE slug=?', (slug,))
+    def mod_access(self, u, m, write=False):
+        if u['role'] == 'admin': return True
+        site = m['site'] if m else ''
+        return bool(site) and self.can(u, site, write)
+    def publish(self, u, b):
+        mod = str(b.get('module', '')); typ = str(b.get('type', ''))[:60]; m = self.module(mod)
+        if not m or not EVT.match(typ): return 400, {'error': 'bad-event'}
+        if not self.mod_access(u, m, True): return 403, {'error': 'forbidden'}
+        pl = json.dumps(b.get('payload') or {}, ensure_ascii=False)
+        if len(pl) > 16 * 1024: return 413, {'error': 'too-large'}
+        c = self.q('INSERT INTO events(ts,module,type,entity,entity_id,project,actor,payload) VALUES(?,?,?,?,?,?,?,?)', (now(), mod, typ, str(b.get('entity', ''))[:60], str(b.get('entity_id', ''))[:120], str(b.get('project', ''))[:60], u['code'], pl))
+        return 200, {'ok': True, 'seq': c.lastrowid}
+    def events(self, u, since=0, module='', project='', typ='', limit=200):
+        mods = [m['slug'] for m in self.all('SELECT * FROM modules') if self.mod_access(u, m)]
+        if not mods: return {'items': [], 'seq': since}
+        w = ['seq>?', 'module IN (%s)' % ','.join('?' * len(mods))]; a = [since] + mods
+        if module: w.append('module=?'); a.append(module)
+        if project: w.append('project=?'); a.append(project)
+        if typ: w.append('type LIKE ?'); a.append(typ.rstrip('*') + '%' if typ.endswith('*') else typ)
+        rows = self.all('SELECT * FROM events WHERE ' + ' AND '.join(w) + ' ORDER BY seq LIMIT ?', tuple(a) + (max(1, min(int(limit), 1000)),))
+        for r in rows: r['payload'] = json.loads(r['payload'] or '{}')
+        return {'items': rows, 'seq': rows[-1]['seq'] if rows else since}
+    def relate(self, u, b):
+        A = b.get('a') or {}; B = b.get('b') or {}; rel = str(b.get('rel', 'related'))[:40]
+        ends = []
+        for e in (A, B):
+            m = self.module(str(e.get('module', '')))
+            if not m or not str(e.get('type', '')) or not str(e.get('id', '')): return 400, {'error': 'bad-relation'}
+            if not self.mod_access(u, m, True): return 403, {'error': 'forbidden'}
+            ends.append((m['slug'], str(e['type'])[:40], str(e['id'])[:120]))
+        self.q('INSERT OR IGNORE INTO relations(a_module,a_type,a_id,b_module,b_type,b_id,rel,ts,by) VALUES(?,?,?,?,?,?,?,?,?)', ends[0] + ends[1] + (rel, now(), u['code']))
+        return 200, {'ok': True}
+    def relations(self, u, module, typ, rid):
+        rows = self.all('SELECT * FROM relations WHERE (a_module=? AND a_type=? AND a_id=?) OR (b_module=? AND b_type=? AND b_id=?) ORDER BY id', (module, typ, rid, module, typ, rid))
+        ok = {}; out = []
+        for r in rows:
+            other = (r['b_module'], r['b_type'], r['b_id']) if (r['a_module'], r['a_type'], r['a_id']) == (module, typ, rid) else (r['a_module'], r['a_type'], r['a_id'])
+            if other[0] not in ok: ok[other[0]] = self.mod_access(u, self.module(other[0]))
+            if ok[other[0]]: out.append({'module': other[0], 'type': other[1], 'id': other[2], 'rel': r['rel'], 'ts': r['ts'], 'by': r['by']})
+        return out
+
     def stats(self):
         c = getattr(self, '_stc', None)
         if c and now() - c[0] < 5: return c[1]
@@ -263,6 +340,12 @@ class H(BaseHTTPRequestHandler):
         hub = self.hub; seg = [unquote(s) for s in p[len('/api/v1'):].split('/') if s] if p.startswith('/api/v1') else None
         if seg is None: return self.send(404, {'error': 'not-found'})
         if seg == ['health']: return self.send(200, {'ok': True, 'version': VERSION, 'time': now(), 'test_mode': bool(hub.cfg.get('test_mode'))})
+        if seg == ['modules'] and m == 'GET':  # public registry; access flags only when signed in
+            uu = self.user(); rows = hub.all('SELECT slug,name_fa,name_en,status,path,color,icon,ord,summary_en,site FROM modules ORDER BY ord')
+            for r in rows:
+                r['access'] = bool(uu) and hub.mod_access(uu, r)
+                if not uu: r.pop('site', None)
+            self._etag = True; return self.send(200, {'modules': rows})
         if seg == ['auth', 'login'] and m == 'POST':
             b = self.body(); u, err = hub.login(b.get('code', ''), b.get('pin', ''), str(b.get('device', ''))[:60], self.ip())
             if err == 'locked': return self.send(429, {'error': 'locked', 'retry_after': 600})
@@ -310,6 +393,14 @@ class H(BaseHTTPRequestHandler):
                 c, r = hub.put(u, o.get('site', ''), o.get('coll', ''), str(o.get('id', '')), o.get('data'), o.get('base_rev', 0), o.get('op_id'), delete=(o.get('type') == 'del'))
                 out.append({'op_id': o.get('op_id'), 'status': 'ok' if c == 200 else ('conflict' if c == 409 else 'error'), 'code': c, **r})
             return self.send(200, {'results': out})
+        if seg == ['events'] and m == 'POST': c, r = hub.publish(u, self.body()); return self.send(c, r)
+        if seg == ['events'] and m == 'GET':
+            qs = parse_qs(urlparse(self.path).query); g = lambda k, d='': (qs.get(k) or [d])[0]
+            return self.send(200, hub.events(u, int(g('since', '0') or 0), g('module'), g('project'), g('type'), int(g('limit', '200') or 200)))
+        if seg == ['relations'] and m == 'POST': c, r = hub.relate(u, self.body()); return self.send(c, r)
+        if seg == ['relations'] and m == 'GET':
+            qs = parse_qs(urlparse(self.path).query); g = lambda k: (qs.get(k) or [''])[0]
+            return self.send(200, {'items': hub.relations(u, g('module'), g('type'), g('id'))})
         if seg == ['stream'] and m == 'GET': return self.stream(u)
         if seg == ['ai'] and m == 'POST': return self.ai(u)
         if seg == ['ai', 'stream'] and m == 'POST': return self.ai(u, stream=True)
@@ -365,6 +456,12 @@ class H(BaseHTTPRequestHandler):
         if seg == ['audit']:
             qs = parse_qs(urlparse(self.path).query); lim = min(int((qs.get('limit') or ['100'])[0]), 500); a = (qs.get('action') or [''])[0]
             return self.send(200, {'items': hub.all('SELECT id,ts,user,action,target,detail,ip FROM audit ' + ('WHERE action=? ' if a else '') + 'ORDER BY id DESC LIMIT ?', ((a,) if a else ()) + (lim,))})
+        if seg == ['modules'] and m == 'POST':
+            b = self.body(); slug = str(b.get('slug', '')).strip().lower()
+            if not SLUG.match(slug) or not b.get('name_fa') or not b.get('name_en') or b.get('status', 'planned') not in ('live', 'beta', 'planned', 'retired'): return self.send(400, {'error': 'invalid'})
+            hub.q('INSERT OR REPLACE INTO modules(slug,name_fa,name_en,status,path,site,color,icon,ord,summary_en,updated) VALUES(?,?,?,?,?,?,?,?,COALESCE(?,(SELECT ord FROM modules WHERE slug=?),99),?,?)',
+                  (slug, str(b['name_fa'])[:60], str(b['name_en'])[:60], b.get('status', 'planned'), str(b.get('path', ''))[:80], str(b.get('site', ''))[:40], str(b.get('color', ''))[:20], str(b.get('icon', ''))[:20], b.get('ord'), slug, str(b.get('summary_en', ''))[:300], now()))
+            hub.log(adm['code'], 'module-save', slug); return self.send(200, {'ok': True})
         if seg == ['clients']: return self.send(200, {'items': hub.all('SELECT device,user,last_seen,pending,conflicts,ua,ip FROM clients ORDER BY last_seen DESC LIMIT 200')})
         if seg == ['backup'] and m == 'POST': n = hub.backup(); hub.log(adm['code'], 'backup', n); return self.send(200, {'file': n})
         if seg == ['export'] and m == 'GET': hub.log(adm['code'], 'export'); return self.send(200, hub.export())
@@ -415,7 +512,7 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {'error': 'not-found'})
 
 def make_server(cfg):
-    s = ThreadingHTTPServer((cfg['host'], cfg['port']), H); s.hub = Hub(cfg); s.daemon_threads = True; return s
+    s = ThreadingHTTPServer((cfg['host'], cfg['port']), H); s.hub = Hub(cfg); s.hub.seed_modules(); s.daemon_threads = True; return s
 
 def main():
     cfg = load_config(); a = sys.argv[1:]
