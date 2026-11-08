@@ -3,7 +3,7 @@
 ذخیره‌ی آنلاین در SQLite · ورود با کد+PIN · نسخه‌بندی رکوردها (CAS) · همگام‌سازی دسته‌ای · ثبت‌نام سایت‌ها · ممیزی · پشتیبان · دروازه‌ی هوش مصنوعی."""
 import base64, hashlib, hmac, json, os, re, secrets, sqlite3, sys, threading, time, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 VERSION = '1.0.0'
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -260,7 +260,7 @@ class H(BaseHTTPRequestHandler):
         d = self.headers.get('X-Device')
         if d: self.hub.q('INSERT OR REPLACE INTO clients VALUES(?,?,?,?,?,?,?,?)', (d[:60], u['code'], now(), int(self.headers.get('X-Pending') or 0), int(self.headers.get('X-Conflicts') or 0), (self.headers.get('User-Agent') or '')[:120], self.ip(), ''))
     def api(self, m, p):
-        hub = self.hub; seg = [s for s in p[len('/api/v1'):].split('/') if s] if p.startswith('/api/v1') else None
+        hub = self.hub; seg = [unquote(s) for s in p[len('/api/v1'):].split('/') if s] if p.startswith('/api/v1') else None
         if seg is None: return self.send(404, {'error': 'not-found'})
         if seg == ['health']: return self.send(200, {'ok': True, 'version': VERSION, 'time': now(), 'test_mode': bool(hub.cfg.get('test_mode'))})
         if seg == ['auth', 'login'] and m == 'POST':
@@ -295,6 +295,11 @@ class H(BaseHTTPRequestHandler):
                 if 'since' in qs: c, r = hub.feed(u, site, coll, int(qs['since'][0]), int((qs.get('limit') or ['500'])[0]))
                 else: c, r = hub.snapshot(u, site, coll, (qs.get('limit') or [None])[0], (qs.get('after') or [''])[0])
                 self._etag = True; return self.send(c, r)
+            if len(seg) == 4 and m == 'GET':
+                if not hub.can(u, site, False): return self.send(403, {'error': 'forbidden'})
+                r = hub.one('SELECT id,data,rev,deleted,updated,updated_by FROM records WHERE site=? AND coll=? AND id=?', (site, coll, seg[3]))
+                if not r or r['deleted']: return self.send(404, {'error': 'not-found', 'rev': r['rev'] if r else 0})
+                self._etag = True; return self.send(200, {'id': r['id'], 'rev': r['rev'], 'data': json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']})
             if len(seg) == 4 and m in ('PUT', 'DELETE'):
                 b = self.body(); c, r = hub.put(u, site, coll, seg[3], b.get('data'), b.get('base_rev', 0), b.get('op_id'), delete=(m == 'DELETE'))
                 if c == 200: hub.log(u['code'], 'put' if m == 'PUT' else 'del', '%s/%s/%s' % (site, coll, seg[3]), '', self.ip())
