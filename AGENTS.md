@@ -23,7 +23,7 @@ One domain hosts several sites ("modules") that share **one login, one database,
 |---|---|
 | `index.html` | Ecosystem landing page: neon hub with the Danimor logo and the 12 modules (no external deps, noindex). |
 | `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.44.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
-| `admin/` | Control center: users, roles, site grants, audit, backups, service keys. |
+| `admin/` | **User Control Panel** + unified login: ecosystem-admin console (subscriptions, requests, modules, staff, system) and subscription-admin panel (users, 10 levels, profile). |
 | `aide/` | Connection/test page for the CEO & Secretary desk. The real Aide app lives in repo `danialmor/aide`. |
 | `shared/sdk.js` | Browser SDK for the hub (login, offline outbox, conflicts, paging, AI streaming). |
 | `hub/server.py` | **The core backend** (Python 3 standard library only, SQLite). |
@@ -34,7 +34,7 @@ One domain hosts several sites ("modules") that share **one login, one database,
 ## How to run locally
 ```
 python3 hub/server.py init                       # creates admin "Admin" / PIN "Admin123" and the default sites
-HUB_TEST_MODE=1 HUB_STATIC_DIR=$PWD python3 hub/server.py   # http://127.0.0.1:8787/msp-bi/
+HUB_TEST_MODE=1 HUB_STATIC_DIR=$PWD python3 hub/server.py   # http://127.0.0.1:8787/admin/ (login) and /msp-bi/
 ```
 Environment: `HUB_DATA_DIR`, `HUB_PORT`, `HUB_STATIC_DIR`, `HUB_TEST_MODE`, `HUB_CONFIG` (JSON file, see `hub/config.example.json`).
 
@@ -44,8 +44,10 @@ python3 hub/tests/test_hub.py       # auth, CAS records, sync, admin, AI gateway
 python3 hub/tests/test_perf.py      # indexes, paging, ETag/304, AI streaming
 python3 hub/tests/test_core.py      # ecosystem core: module registry, event bus, relations
 python3 hub/tests/test_testmode.py  # test mode credentials
+python3 hub/tests/test_tenants.py   # subscriptions: owner panel, levels, seats, codes, isolation, expiry
 node hub/tests/sdk_test.js && node hub/tests/sdk_perf_test.js
 node hub/tests/e2e_bridge.js        # real hub + browser (needs Playwright): login, server save, 2nd device, merge, files, logout
+node hub/tests/e2e_panel.js         # control panel: admin creates subscription, owner adds user, user lands in his module
 ```
 
 ## Rules for changes
@@ -55,6 +57,7 @@ node hub/tests/e2e_bridge.js        # real hub + browser (needs Playwright): log
 4. This repository is **public**: never commit real company data, real user lists, tokens or keys.
 5. UI text in Persian, RTL, with correct ZWNJ (half-space). Code, comments and docs in English (some legacy Persian comments exist).
 6. Ask the owner before changing anything listed in `docs/DECISIONS.md`.
+7. Subscription users must never see the control panel; only the ecosystem admin and subscription admins (`owner`) do. Keep data isolation per subscription (`Hub.ss`).
 
 ## Where to start
 See **"Next steps"** in `docs/STATUS.md`. The top item is always the current priority.
