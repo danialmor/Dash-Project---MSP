@@ -16,3 +16,8 @@ Each entry: date · decision · reason. Do not reverse without the owner's appro
 - **2026-11** · Delay responses (full / partial / reject with reason) must be restricted to CEO and deputies once user panels are live. · Owner requirement.
 - **2026-11** · User-facing text in Persian (RTL); developer documentation in English. · Owner requirement for AI hand-over.
 - **2026-11** · The public repo must never contain real company data. · Privacy.
+- **2026-11** · Multi-tenancy inside the same hub and database; isolation by storage key `site~<tenantCode>` instead of one database per customer. · One small server, one backup, simple operations.
+- **2026-11** · Three roles of people: ecosystem admin, subscription admin (`owner`), subscription users. **Only admins enter the control panel**; users go straight to their module. · Owner requirement.
+- **2026-11** · Up to **10 levels** per subscription (the ecosystem admin sets the maximum per subscription; the subscription admin names them; level 1 is the highest). · Owner requirement.
+- **2026-11** · Every user gets a personal code `<tenant>-<NNNN>` that shows which subscription they belong to; usable as login name. · Owner requirement.
+- **2026-11** · Usernames are unique across the whole ecosystem. · One login page for everyone.
