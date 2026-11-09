@@ -6,8 +6,9 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#08070a">
-<title>TSUBA · Twelve Platforms, One Ecosystem</title>
-<link rel="icon" id="fav" href="data:,">
+<title>{brand} · Twelve Platforms, One Ecosystem</title>
+<link rel="icon" data-brand="favicon" href="data:,">
+<script src="shared/brand.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <style>
@@ -84,18 +85,18 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:36px;font-
 </style>
 </head>
 <body>
-<header class="top"><a class="brand" href="./" aria-label="TSUBA home"><img id="hdrEmb" alt=""><b>TSUBA</b></a><a class="signin" href="/admin/">Sign in</a></header>
+<header class="top"><a class="brand" href="./" aria-label="Home"><img data-brand="logo" alt=""><b data-brand="name">TSUBA</b></a><a class="signin" href="/admin/">Sign in</a></header>
 <main class="wrap">
  <section class="hero" aria-label="TSUBA ecosystem">
   <div class="hub" id="hub">
    <svg class="ring" id="ring" viewBox="-100 -100 200 200" aria-hidden="true"></svg>
    <svg class="links" id="links" viewBox="-100 -100 200 200" aria-hidden="true"></svg>
-   <div class="emb"><img id="emb" src="assets/tsuba-emblem.webp" alt="TSUBA emblem: a sword guard with a katana and a family crest"></div>
+   <div class="emb"><img id="emb" data-brand="logo" data-brand-alt alt=""></div>
   </div>
-  <div class="title"><h1>TSUBA</h1><p>TWELVE PLATFORMS · ONE ECOSYSTEM</p><p class="cap" id="cap" aria-live="polite"></p></div>
+  <div class="title"><h1 data-brand="name">TSUBA</h1><p data-brand="tagline-en" style="text-transform:uppercase">TWELVE PLATFORMS · ONE ECOSYSTEM</p><p class="cap" id="cap" aria-live="polite"></p></div>
  </section>
  <section class="pillars" aria-label="Meaning of the name">
-  <div><h3>TSUBA <span>鍍</span></h3><em>The Guard · Protection</em><p>The guard that protects the hand and joins it to the blade: one secure core that connects every platform.</p></div>
+  <div><h3>TSUBA <span>鍔</span></h3><em>The Guard · Protection</em><p>The guard that protects the hand and joins it to the blade: one secure core that connects every platform.</p></div>
   <div><h3>KATANA <span>刀</span></h3><em>The Sword · Purpose</em><p>Clarity and precision: each platform cuts through one kind of work and does it well.</p></div>
   <div><h3>KAMON <span>家紋</span></h3><em>The Crest · Identity</em><p>One family, twelve members: every user and every subscription carries its own identity.</p></div>
  </section>
@@ -109,7 +110,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:36px;font-
   <p>One sign-in, one database and one permission system for every platform.</p>
   <ul class="mods" id="mods"></ul>
  </section>
- <footer>BALANCE · PURPOSE · IDENTITY<br><span style="letter-spacing:.1em">TSUBA © <span id="yr"></span></span></footer>
+ <footer><span data-brand="motto" style="text-transform:uppercase">BALANCE · PURPOSE · IDENTITY</span><br><span style="letter-spacing:.1em"><span data-brand="name">TSUBA</span> © <span id="yr"></span></span></footer>
 </main>
 <script>
 (function(){
@@ -127,21 +128,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:36px;font-
   pal:'<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.4-2-.5-1.2.3-2.5 1.6-2.5H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>',
   bld:'<path d="M4 21V7l7-3v17M11 21h9V10l-9-3M7 9v.01M7 12v.01M7 15v.01M14 12h3M14 15h3M14 18h3"/>'
  };
- /* numeral, platform, what it does, icon, colour-wheel hue (clockwise from the top), link when live */
- var M=[
-  ['I','Project Control','Scheduling and project management','crane','#e0262f','/msp-bi/'],
-  ['II','Training','Learning and development','cap','#f25a22',''],
-  ['III','Messenger','Company communication','chat','#f7941d','/msp-bi/'],
-  ['IV','User Control Panel','Accounts and permissions','users','#fbb817','/admin/'],
-  ['V','CEO & Secretary Desk','Management and decisions','tie','#e8d200','/aide/'],
-  ['VI','Letters & Email','Smart correspondence','mail','#8dc63f','/msp-bi/'],
-  ['VII','File Manager','Documents and files','folder','#00a650','/msp-bi/'],
-  ['VIII','Portfolio','Activity and profile analysis','chart','#00a99d',''],
-  ['IX','Shared Cursor','Real-time collaboration','cursor','#0072bc',''],
-  ['X','Designer Workspace','Design and creativity','pal','#2e3192',''],
-  ['XI','CRM','Clients and relationships','hand','#662d91',''],
-  ['XII','Company Space','Private company environment','bld','#c2185b','']
- ];
+ /* the twelve platforms come from the brand root (shared/brand.js): numeral, name, description, icon, colour, link */
+ var M=BRAND.platforms.map(function(p){return [p.n,p.en,p.desc_en,p.icon,p.color,p.href]});
  function mix(h,w,t){var n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255,m=w?255:0;return 'rgb('+[r,g,b].map(function(c){return Math.round(c+(m-c)*t)}).join(',')+')'}
  var hub=document.getElementById('hub'),links=document.getElementById('links'),ring=document.getElementById('ring'),cap=document.getElementById('cap'),mods=document.getElementById('mods'),NS='http://www.w3.org/2000/svg';
  function el(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);return e}
@@ -173,7 +161,6 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:36px;font-
  hub.addEventListener('focusout',function(){show(-1)});
  hub.addEventListener('click',function(e){var n=e.target.closest('button.node');if(n)show(+n.dataset.i)});
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){var k=0,t=setInterval(function(){[].forEach.call(links.querySelectorAll('line.flow'),function(l){l.classList.toggle('on',+l.dataset.i===k)});if(++k>M.length){clearInterval(t);[].forEach.call(links.querySelectorAll('line.flow'),function(l){l.classList.remove('on')})}},260)}
- var src=document.getElementById('emb').src;document.getElementById('hdrEmb').src=src;document.getElementById('fav').href=src;
  document.getElementById('yr').textContent=new Date().getFullYear();
 })();
 </script>
