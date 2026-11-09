@@ -6,7 +6,9 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#050a1f">
-<title>TSUBA · کنترل پنل کاربران</title>
+<title>{brand} · IV — کنترل پنل کاربران</title>
+<link rel="icon" data-brand="favicon" href="data:,">
+<script src="../shared/brand.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Vazirmatn:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <style>
@@ -100,7 +102,7 @@ dialog h2{margin:0;font-size:18px}
 <section id="login" hidden>
  <div class="lcard">
   <form class="lform" id="lf" autocomplete="on" novalidate>
-   <h1>ورود به TSUBA</h1>
+   <h1>ورود به <span data-brand="name">TSUBA</span></h1>
    <p class="sub">با یک حساب به همه‌ی بخش‌هایی که اشتراکش را دارید وارد می‌شوید.</p>
    <label class="f">نام کاربری یا کد اختصاصی<input name="code" class="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
    <label class="f">رمز عبور<span class="pw"><input name="pin" type="password" class="ltr" autocomplete="current-password" required><button type="button" id="pwT" aria-pressed="false">نمایش</button></span></label>
@@ -111,7 +113,7 @@ dialog h2{margin:0;font-size:18px}
    <p class="sub" id="tmNote" hidden>حالت آزمایشی سرور روشن است.</p>
   </form>
   <div class="lside">
-   <div class="brand"><img src="../assets/tsuba-emblem.webp" alt=""><div><b>TSUBA</b><small>اکوسیستم دوازده پلتفرم</small></div></div>
+   <div class="brand"><img data-brand="logo" alt=""><div><b data-brand="name">TSUBA</b><small data-brand="tagline-fa">اکوسیستم دوازده پلتفرم</small></div></div>
    <h2>یک ورود؛ همه‌ی بخش‌های کار شما.</h2>
    <ul><li><i>✓</i>اطلاعات فقط روی سرور ذخیره می‌شود</li><li><i>✓</i>هر کاربر مستقیم به بخش کاری خودش می‌رود</li><li><i>✓</i>کد اختصاصی برای هر کاربر و هر اشتراک</li></ul>
   </div>
@@ -150,7 +152,8 @@ function toast(t){var el=$('#toast');el.textContent=t;el.hidden=false;clearTimeo
 var fmtD=function(ts){if(!ts)return 'نامحدود';try{return new Intl.DateTimeFormat('fa-IR-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts*1000))}catch(e){return new Date(ts*1000).toLocaleDateString()}};
 var daysLeft=function(ts){return ts?Math.ceil((ts*1000-Date.now())/864e5):null};
 var fa=function(n){return Number(n||0).toLocaleString('fa-IR')};
-function modName(slug){var m=MODS.filter(function(x){return x.slug===slug})[0];return m?m.name_fa:slug}
+function modName(slug){if(BRAND.platform(slug))return BRAND.label(slug,'fa');var m=MODS.filter(function(x){return x.slug===slug})[0];return m?m.name_fa:slug}
+function modDesc(slug){return BRAND.desc(slug,'fa')}
 function chipsMods(list){return (list||[]).map(function(s){return '<span class="chip">'+esc(modName(s))+'</span>'}).join(' ')||'<span class="chip warn">بدون بخش</span>'}
 function stChip(active,status){return active?'<span class="chip ok">فعال</span>':(status==='suspended'?'<span class="chip bad">معلق</span>':'<span class="chip warn">غیرفعال یا منقضی</span>')}
 function show(id){['login','pwc','app'].forEach(function(x){$('#'+x).hidden=x!==id})}
@@ -173,7 +176,7 @@ var NAV_ADMIN=[['overview','نمای کلی'],['tenants','اشتراک‌ها'],
 var NAV_OWNER=[['overview','نمای کلی'],['users','کاربران'],['levels','سطوح'],['profile','پروفایل من']];
 function isAdmin(){return S&&S.user.role==='admin'&&!S.tenant}
 function buildNav(){var n=isAdmin()?NAV_ADMIN:NAV_OWNER;
- $('#nav').innerHTML='<div class="brand"><img src="../assets/tsuba-emblem.webp" alt=""><div><b>TSUBA</b><small>'+(isAdmin()?'مدیریت اکوسیستم':esc(S.tenant.name))+'</small></div></div>'+n.map(function(x){return '<button type="button" data-go="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<div class="me"><b>'+esc(S.user.name)+'</b><span class="mono">'+esc(S.ucode||S.user.code)+'</span><div class="row" style="margin-top:8px"><a class="btn s" href="/">صفحه‌ی اصلی</a><button class="btn s" type="button" id="lo">خروج</button></div></div>';
+ $('#nav').innerHTML='<div class="brand"><img src="'+esc(BRAND.logo)+'" alt=""><div><b>'+esc(BRAND.name)+'</b><small>'+(isAdmin()?'مدیریت اکوسیستم':esc(S.tenant.name))+'</small></div></div>'+n.map(function(x){return '<button type="button" data-go="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<div class="me"><b>'+esc(S.user.name)+'</b><span class="mono">'+esc(S.ucode||S.user.code)+'</span><div class="row" style="margin-top:8px"><a class="btn s" href="/">صفحه‌ی اصلی</a><button class="btn s" type="button" id="lo">خروج</button></div></div>';
  $('#lo').onclick=logout}
 $('#nav').addEventListener('click',function(e){var b=e.target.closest('[data-go]');if(b)go(b.dataset.go)});
 addEventListener('hashchange',function(){if(S&&!$('#app').hidden)go(location.hash.slice(1)||'overview',true)});
@@ -183,7 +186,7 @@ function go(v,fromHash){var list=isAdmin()?NAV_ADMIN:NAV_OWNER;if(!list.some(fun
 function head(t,sub,act){return '<div class="head"><div><h1>'+t+'</h1>'+(sub?'<p>'+sub+'</p>':'')+'</div><div class="row">'+(act||'')+'</div></div>'}
 function openDlg(html,init){var d=$('#dlg');d.innerHTML=html;d.querySelectorAll('[data-close]').forEach(function(b){b.onclick=closeDlg});d.showModal?d.showModal():d.setAttribute('open','');if(init)init(d.querySelector('form')||d)}
 function closeDlg(){var d=$('#dlg');d.close?d.close():d.removeAttribute('open')}
-function modChecks(name,allowed,picked){return '<div class="mods">'+MODS.filter(function(m){return !allowed||allowed.indexOf(m.slug)>=0}).map(function(m){return '<label><input type="checkbox" name="'+name+'" value="'+m.slug+'"'+(picked&&picked.indexOf(m.slug)>=0?' checked':'')+'> '+esc(m.name_fa)+(m.status==='planned'?' <small style="color:var(--warn)">(به‌زودی)</small>':'')+'</label>'}).join('')+'</div>'}
+function modChecks(name,allowed,picked){return '<div class="mods">'+MODS.filter(function(m){return !allowed||allowed.indexOf(m.slug)>=0}).map(function(m){return '<label><input type="checkbox" name="'+name+'" value="'+m.slug+'"'+(picked&&picked.indexOf(m.slug)>=0?' checked':'')+'> '+esc(modName(m.slug))+(m.status==='planned'?' <small style="color:var(--warn)">(به‌زودی)</small>':'')+'</label>'}).join('')+'</div>'}
 function picked(f,name){return $$('input[name="'+name+'"]:checked',f).map(function(i){return i.value})}
 function secretBox(rows){return '<div class="secret">'+rows.map(function(r){return '<div class="row" style="justify-content:space-between"><span>'+r[0]+'</span><b class="mono">'+esc(r[1])+'</b></div>'}).join('')+'<p style="margin:8px 0 0;font-size:12.5px;color:var(--muted)">این اطلاعات را به کاربر بدهید. با اولین ورود، رمز اولیه باید عوض شود.</p></div>'}
 
@@ -198,7 +201,7 @@ var A={
   $('#pg').innerHTML=head('درخواست‌های اشتراک','از دکمه‌ی «درخواست اشتراک» در صفحه‌ی ورود')+(r.items.length?'<div class="tw"><table class="tbl"><thead><tr><th>تاریخ</th><th>نام</th><th>شرکت</th><th>تماس</th><th>توضیح</th><th>وضعیت</th></tr></thead><tbody>'+r.items.map(function(x){return '<tr><td>'+fmtD(x.ts)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.company)+'</td><td class="mono">'+esc(x.phone)+' '+esc(x.email)+'</td><td style="white-space:normal;min-width:180px">'+esc(x.note)+'</td><td><select data-su="'+x.id+'" aria-label="وضعیت درخواست">'+Object.keys(L).map(function(k){return '<option value="'+k+'"'+(k===x.status?' selected':'')+'>'+L[k]+'</option>'}).join('')+'</select></td></tr>'}).join('')+'</tbody></table></div>':'<div class="card empty">هنوز درخواستی نیامده است.</div>');
   $$('[data-su]').forEach(function(s){s.onchange=function(){api('PATCH','/admin/signups/'+s.dataset.su,{status:s.value}).then(function(){toast('ذخیره شد.')}).catch(function(x){toast(emsg(x))})}})})},
  modules:function(){return api('GET','/modules').then(function(r){MODS=r.modules;var L={live:'فعال',beta:'آزمایشی',planned:'به‌زودی',retired:'بازنشسته'};
-  $('#pg').innerHTML=head('ماژول‌های اکوسیستم','وضعیت و نشانی هر بخش؛ فقط بخش‌های فعال یا آزمایشی در اشتراک‌ها قابل استفاده‌اند.')+'<div class="tw"><table class="tbl"><thead><tr><th>بخش</th><th>شناسه</th><th>وضعیت</th><th>نشانی</th><th>سایت دسترسی</th><th></th></tr></thead><tbody>'+r.modules.map(function(m){return '<tr data-m="'+m.slug+'"><td><b>'+esc(m.name_fa)+'</b><br><small style="color:var(--muted)">'+esc(m.name_en)+'</small></td><td class="mono">'+m.slug+'</td><td><select name="status" aria-label="وضعیت">'+Object.keys(L).map(function(k){return '<option value="'+k+'"'+(k===m.status?' selected':'')+'>'+L[k]+'</option>'}).join('')+'</select></td><td><input name="path" class="ltr" value="'+esc(m.path)+'" aria-label="نشانی" style="min-width:120px"></td><td><input name="site" class="ltr" value="'+esc(m.site||'')+'" aria-label="سایت دسترسی" style="min-width:90px"></td><td><button class="btn s" type="button" data-save>ذخیره</button></td></tr>'}).join('')+'</tbody></table></div>';
+  $('#pg').innerHTML=head('ماژول‌های اکوسیستم','وضعیت و نشانی هر بخش؛ فقط بخش‌های فعال یا آزمایشی در اشتراک‌ها قابل استفاده‌اند.')+'<div class="tw"><table class="tbl"><thead><tr><th>بخش</th><th>شناسه</th><th>وضعیت</th><th>نشانی</th><th>سایت دسترسی</th><th></th></tr></thead><tbody>'+r.modules.map(function(m){return '<tr data-m="'+m.slug+'"><td><b>'+esc(modName(m.slug))+'</b><br><small style="color:var(--muted)">'+esc(modDesc(m.slug)||m.name_en)+'</small></td><td class="mono">'+m.slug+'</td><td><select name="status" aria-label="وضعیت">'+Object.keys(L).map(function(k){return '<option value="'+k+'"'+(k===m.status?' selected':'')+'>'+L[k]+'</option>'}).join('')+'</select></td><td><input name="path" class="ltr" value="'+esc(m.path)+'" aria-label="نشانی" style="min-width:120px"></td><td><input name="site" class="ltr" value="'+esc(m.site||'')+'" aria-label="سایت دسترسی" style="min-width:90px"></td><td><button class="btn s" type="button" data-save>ذخیره</button></td></tr>'}).join('')+'</tbody></table></div>';
   $$('[data-save]').forEach(function(b){b.onclick=function(){var tr=b.closest('tr'),m=r.modules.filter(function(x){return x.slug===tr.dataset.m})[0];api('POST','/admin/modules',{slug:m.slug,name_fa:m.name_fa,name_en:m.name_en,status:$('[name=status]',tr).value,path:$('[name=path]',tr).value,site:$('[name=site]',tr).value,color:m.color,icon:m.icon,ord:m.ord,summary_en:m.summary_en}).then(function(){toast('ذخیره شد.')}).catch(function(x){toast(emsg(x))})}})})},
  staff:function(){return api('GET','/admin/users').then(function(r){var R={admin:'مدیر کل',manager:'مدیر',member:'کاربر',viewer:'فقط مشاهده',service:'کلید اتصال'};
   $('#pg').innerHTML=head('کاربران دفتر مرکزی','کاربران شرکت خود شما (بیرون از اشتراک‌ها)','<button class="btn p" type="button" id="ns">کاربر جدید</button>')+'<div class="tw"><table class="tbl"><thead><tr><th>نام</th><th>نام کاربری</th><th>نقش</th><th>سایت‌ها</th><th>آخرین ورود</th><th>وضعیت</th><th></th></tr></thead><tbody>'+r.users.map(function(u){return '<tr><td>'+esc(u.name)+'</td><td class="mono">'+esc(u.code)+'</td><td>'+(R[u.role]||u.role)+'</td><td>'+Object.keys(u.grants).map(function(s){return '<span class="chip">'+esc(s)+'</span>'}).join(' ')+'</td><td>'+(u.last_login?fmtD(u.last_login):'—')+'</td><td>'+(u.active?'<span class="chip ok">فعال</span>':'<span class="chip bad">غیرفعال</span>')+'</td><td class="row">'+(u.role!=='admin'?'<button class="btn s" data-tg="'+u.id+'" data-a="'+(u.active?0:1)+'">'+(u.active?'غیرفعال‌کردن':'فعال‌کردن')+'</button>':'')+'<button class="btn s" data-rp="'+u.id+'">رمز اولیه</button></td></tr>'}).join('')+'</tbody></table></div>';
@@ -211,7 +214,7 @@ var A={
   '<div class="grid g2"><div class="card"><h2 style="margin:0 0 8px;font-size:16px">رویدادهای اخیر</h2><div class="tw"><table class="tbl"><tbody>'+r[1].items.map(function(a){return '<tr><td>'+fmtD(a.ts)+'</td><td class="mono">'+esc(a.user)+'</td><td>'+esc(a.action)+'</td><td class="mono">'+esc(a.target)+'</td></tr>'}).join('')+'</tbody></table></div></div>'+
   '<div class="card"><h2 style="margin:0 0 8px;font-size:16px">دستگاه‌ها</h2>'+(r[2].items.length?'<div class="tw"><table class="tbl"><tbody>'+r[2].items.slice(0,20).map(function(c){return '<tr><td class="mono">'+esc(c.user)+'</td><td>'+fmtD(c.last_seen)+'</td><td>'+(c.pending?'<span class="chip warn">'+fa(c.pending)+' در صف</span>':'<span class="chip ok">همگام</span>')+'</td></tr>'}).join('')+'</tbody></table></div>':'<p class="empty">هنوز دستگاهی گزارش نداده است.</p>')+'</div></div>';
   $('#bk').onclick=function(){api('POST','/admin/backup').then(function(x){toast('پشتیبان ساخته شد: '+x.file)}).catch(function(x){toast(emsg(x))})};
-  $('#ex').onclick=function(){api('GET','/admin/export').then(function(x){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(x)],{type:'application/json'}));a.download='tsuba-export.json';a.click()}).catch(function(x){toast(emsg(x))})}})},
+  $('#ex').onclick=function(){api('GET','/admin/export').then(function(x){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(x)],{type:'application/json'}));a.download=BRAND.name.toLowerCase()+'-export.json';a.click()}).catch(function(x){toast(emsg(x))})}})},
  profile:function(){return profile()}
 };
 function tenantTable(list){if(!list.length)return '<div class="card empty">هنوز اشتراکی ساخته نشده است. «اشتراک جدید» را بزنید.</div>';
@@ -240,7 +243,7 @@ var O={
  overview:function(){return ov().then(function(r){var s=r.sub,d=daysLeft(s.ends),pct=s.seats?Math.min(100,Math.round(r.used*100/s.seats)):0;
   $('#pg').innerHTML=head(esc(r.tenant.name),'کد اشتراک: <span class="mono">'+esc(r.tenant.code)+'</span>')+(!r.active?'<div class="card mb" style="border-color:rgba(251,113,133,.5)"><b style="color:var(--bad)">اشتراک فعال نیست.</b> کاربران شما تا تمدید نمی‌توانند وارد شوند. برای تمدید با مدیر اکوسیستم تماس بگیرید.</div>':'')+
   '<div class="grid g4 mb"><div class="card kpi"><b>'+esc(s.plan||'—')+'</b><span>بسته</span></div><div class="card kpi"><b>'+fmtD(s.ends)+'</b><span>'+(d===null?'بدون تاریخ پایان':(d>=0?fa(d)+' روز مانده':'منقضی شده'))+'</span></div><div class="card kpi"><b>'+fa(r.used)+' از '+fa(s.seats)+'</b><span>کاربران</span><div class="bar" style="margin-top:8px"><i style="width:'+pct+'%"></i></div></div><div class="card kpi"><b>'+fa(s.max_levels)+'</b><span>سطح کاربری مجاز</span></div></div>'+
-  '<div class="card"><h2 style="margin:0 0 10px;font-size:16px">بخش‌های اشتراک</h2><div class="grid g2">'+r.modules.map(function(m){return '<div class="card" style="background:var(--card2)"><b>'+esc(m.name_fa)+'</b><br><small style="color:var(--muted)">'+(m.status==='planned'?'به‌زودی فعال می‌شود':'فعال')+'</small></div>'}).join('')+'</div></div>'})},
+  '<div class="card"><h2 style="margin:0 0 10px;font-size:16px">بخش‌های اشتراک</h2><div class="grid g2">'+r.modules.map(function(m){return '<div class="card" style="background:var(--card2)"><b>'+esc(modName(m.slug))+'</b><br><small style="color:var(--muted)">'+esc(modDesc(m.slug))+(m.status==='planned'?' · به‌زودی':'')+'</small></div>'}).join('')+'</div></div>'})},
  users:function(){return Promise.all([ov(),api('GET','/panel/users')]).then(function(r){var o=r[0],us=r[1].users,full=o.used>=o.sub.seats;
   $('#pg').innerHTML=head('کاربران','هر کاربر یک کد اختصاصی دارد و پس از ورود مستقیم به بخش کاری خودش می‌رود. ظرفیت: '+fa(o.used)+' از '+fa(o.sub.seats),'<button class="btn p" type="button" id="nu"'+(full?' disabled title="ظرفیت پر است"':'')+'>کاربر جدید</button>')+
   '<div class="tw"><table class="tbl"><thead><tr><th>کد اختصاصی</th><th>نام</th><th>نام کاربری</th><th>سطح</th><th>بخش‌ها</th><th>ورود به</th><th>آخرین ورود</th><th>وضعیت</th><th></th></tr></thead><tbody>'+us.map(function(u){var own=u.role==='owner';return '<tr><td class="mono">'+esc(u.ucode)+'</td><td>'+esc(u.name)+(own?' <span class="chip ok">مدیر اشتراک</span>':'')+(u.role==='viewer'?' <span class="chip">فقط مشاهده</span>':'')+'</td><td class="mono">'+esc(u.code)+'</td><td>'+(own?'—':esc(lvName(u.level)))+'</td><td style="white-space:normal;min-width:150px">'+(own?'همه‌ی بخش‌ها':chipsMods(u.mods))+'</td><td>'+(own?'کنترل پنل':esc(modName(u.home)))+'</td><td>'+(u.last_login?fmtD(u.last_login):'—')+'</td><td>'+(u.active?'<span class="chip ok">فعال</span>':'<span class="chip bad">غیرفعال</span>')+'</td><td class="row">'+(own?'':'<button class="btn s" data-ed="'+u.id+'">ویرایش</button><button class="btn s" data-rs="'+u.id+'">رمز اولیه</button>')+'</td></tr>'}).join('')+'</tbody></table></div>';
