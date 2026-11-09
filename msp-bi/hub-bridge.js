@@ -1,4 +1,4 @@
-/* Danimor · پل داشبورد msp-bi به هاب
+/* پل داشبورد msp-bi (پلتفرم I — کنترل پروژه) به هاب؛ نام و لوگو از ریشه‌ی برند shared/brand.js
    همه‌ی داده‌ها روی سرور (هاب) ذخیره می‌شوند. مرورگر فقط در طول جلسه یک نسخه‌ی کاری نگه می‌دارد
    که هنگام ورود از سرور پر و هنگام خروج پاک می‌شود. هر تغییر چند صدم ثانیه بعد به سرور فرستاده می‌شود. */
 (function () {
@@ -8,6 +8,9 @@
   var SHARED_LS = ['tlPins', 'wbsCols', 'wbsSnap'];
   var USER_LS = ['dashGhost', 'dashTiles2', 'dsDisp2', 'dsTheme', 'helpOn', 'lvColors5', 'mobForce', 'pgs', 'schedCm', 'simOn', 'simSc', 'splitW', 'themePacks'];
   var CHUNK = 380000, ID_RX = /^[A-Za-z0-9_.:-]{1,80}$/;
+  /* ریشه‌ی برند را اگر صفحه بارگذاری نکرده، خودمان بارگذاری می‌کنیم */
+  (function () { if (window.BRAND) return; var me = document.currentScript, s = document.createElement('script'); s.src = new URL('../shared/brand.js', me ? me.src : location.href).href; s.onload = function () { var h = document.querySelector('#hbL .hbH'); if (h) h.innerHTML = brandHead() }; document.head.appendChild(s) })();
+  function brandHead() { var B = window.BRAND, p = B && B.platform('project-control'); if (!B) return '<h1>داشبورد پروژه‌ها</h1>'; return '<div class="hbB"><img src="' + B.logo + '" alt=""><span>' + B.name + '</span></div><h1>' + B.label(p, 'fa') + '</h1><small class="hbD">' + B.desc(p, 'fa') + '</small>' }
   var T = '', USER = null, REV = {}, PEND = {}, BUSY = false, ERR = '', SEQ = {}, MINE = {}, REMOTE = false, ready = false;
   var oSet = Storage.prototype.setItem, oRem = Storage.prototype.removeItem;
   var UCOLL = function () { return 'u-' + USER.id };
@@ -21,10 +24,11 @@
   css.textContent = '#hbL{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:linear-gradient(135deg,#0f2a24,#1b6f52 55%,#c9a227);font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl}#hbL form{width:min(360px,92vw);background:rgba(255,255,255,.96);border-radius:22px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,0,0,.35);display:grid;gap:12px;color:#14232a}#hbL h1{margin:0 0 4px;font-size:20px}#hbL p{margin:0;color:#5b6b70;font-size:12.5px}#hbL label{display:grid;gap:5px;font-size:13px}#hbL input{min-height:44px;border-radius:12px;border:1px solid #cfd8d6;padding:0 12px;font:inherit;font-size:16px;direction:ltr;text-align:left}#hbL button{min-height:46px;border:0;border-radius:12px;background:#14232a;color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer}#hbL button:disabled{opacity:.6}#hbL .e{color:#c0392b;font-size:12.5px;min-height:1em}#hbL .w{color:#8a5a00;font-size:12px}' +
     '#hbS{position:fixed;inset-inline-start:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;display:flex;align-items:center;gap:8px;background:rgba(20,35,42,.92);color:#fff;border-radius:99px;padding:6px 8px 6px 12px;font:12px Vazirmatn,Tahoma,sans-serif;direction:rtl;box-shadow:0 6px 20px rgba(0,0,0,.25)}#hbS b{font-weight:700}#hbS button{border:0;border-radius:99px;background:rgba(255,255,255,.16);color:#fff;font:inherit;padding:4px 10px;cursor:pointer}#hbS .d{width:8px;height:8px;border-radius:50%;background:#3aa36b}#hbS.p .d{background:#f2b640}#hbS.x .d{background:#e05247}' +
     '#hbR{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:#14232a;color:#fff;border-radius:14px;padding:8px 12px;font:13px Vazirmatn,Tahoma,sans-serif;direction:rtl;display:flex;gap:10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}#hbR button{border:0;border-radius:10px;background:#f2b640;color:#14232a;font:inherit;font-weight:700;padding:5px 10px;cursor:pointer}';
+  css.textContent += '#hbL .hbB{display:flex;align-items:center;gap:8px;font:700 13px Cinzel,Vazirmatn,serif;letter-spacing:.2em;color:#8a6a2c;direction:ltr;justify-content:flex-end}#hbL .hbB img{width:34px;height:34px;border-radius:50%}#hbL .hbH{display:grid;gap:10px}#hbL .hbH h1{margin:0}#hbL .hbD{display:block;margin-top:-6px;color:#5b6b70;font-size:12px}';
   document.head.appendChild(css);
   function loginUI(msg) {
     var d = document.createElement('div'); d.id = 'hbL';
-    d.innerHTML = '<form autocomplete="on"><h1>داشبورد پروژه‌ها</h1><p>برای ورود، کد کاربری و رمز خود را وارد کنید.</p><label>کد کاربری<input name="code" autocomplete="username" required autocapitalize="off" spellcheck="false"></label><label>رمز<input name="pin" type="password" autocomplete="current-password" required></label><div class="e" role="alert">' + (msg || '') + '</div><button type="submit">ورود</button><div class="w" id="hbTM" hidden>حالت آزمایشی سرور روشن است.</div></form>';
+    d.innerHTML = '<form autocomplete="on"><div class="hbH">' + brandHead() + '</div><p>برای ورود، کد کاربری و رمز خود را وارد کنید.</p><label>کد کاربری<input name="code" autocomplete="username" required autocapitalize="off" spellcheck="false"></label><label>رمز<input name="pin" type="password" autocomplete="current-password" required></label><div class="e" role="alert">' + (msg || '') + '</div><button type="submit">ورود</button><div class="w" id="hbTM" hidden>حالت آزمایشی سرور روشن است.</div></form>';
     document.body.appendChild(d);
     api('GET', '/health').then(function (h) { if (h.test_mode) $('#hbTM').hidden = false }).catch(function () { });
     var f = d.querySelector('form'); setTimeout(function () { f.code.focus() }, 50);
