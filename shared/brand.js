@@ -14,7 +14,7 @@
     tagline_en: 'Twelve Platforms · One Ecosystem',
     tagline_fa: 'اکوسیستم دوازده پلتفرم',
     motto: 'Balance · Purpose · Identity',
-    logo: base + 'assets/tsuba-emblem.webp',
+    logo: base + 'assets/tsuba-emblem.svg',
     logo_alt: 'TSUBA emblem: a gold sword guard framed by a green-leaf crest',
     base: base,
     /* شماره‌ی رومی، شناسه (همان شناسه‌ی هاب)، نام و توضیح انگلیسی و فارسی، رنگ، آیکون، نشانی */
