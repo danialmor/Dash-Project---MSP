@@ -22,7 +22,8 @@ def load_config():
     return c
 
 SLUG = re.compile(r'^[a-z0-9][a-z0-9_-]{1,40}$'); CODE = re.compile(r'^[A-Za-z0-9_.-]{2,24}$'); ID = re.compile(r'^[A-Za-z0-9_.:-]{1,80}$')
-ROLES = ('admin', 'manager', 'member', 'viewer', 'service')
+ROLES = ('admin', 'owner', 'manager', 'member', 'viewer', 'service')  # owner = admin of one subscription (tenant)
+MAX_LEVELS = 10
 EVT = re.compile(r'^[a-z][a-z0-9_.-]{1,59}$')
 # Ecosystem module registry seed: (slug, name_fa, name_en, status, path, site, color, icon). 'site' = which site grant gives access.
 MODULES = (
@@ -88,6 +89,19 @@ class Hub:
           UNIQUE(a_module, a_type, a_id, b_module, b_type, b_id, rel));
         CREATE INDEX IF NOT EXISTS rl_a ON relations(a_module, a_type, a_id);
         CREATE INDEX IF NOT EXISTS rl_b ON relations(b_module, b_type, b_id);''')
+        # ── Multi-tenancy (subscriptions) ──
+        self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS tenants(id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created REAL, levels TEXT DEFAULT '[]', contact TEXT DEFAULT '{}');
+        CREATE TABLE IF NOT EXISTS subscriptions(id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, plan TEXT, modules TEXT DEFAULT '[]', seats INTEGER DEFAULT 5,
+          max_levels INTEGER DEFAULT 3, starts REAL, ends REAL, status TEXT DEFAULT 'active', price TEXT DEFAULT '', note TEXT DEFAULT '', created REAL);
+        CREATE INDEX IF NOT EXISTS sub_t ON subscriptions(tenant_id, id);
+        CREATE TABLE IF NOT EXISTS signups(id INTEGER PRIMARY KEY, ts REAL, name TEXT, company TEXT, phone TEXT, email TEXT, note TEXT, status TEXT DEFAULT 'new', ip TEXT);''')
+        for t, col, ddl in (('users', 'tenant_id', 'INTEGER'), ('users', 'level', 'INTEGER DEFAULT 0'), ('users', 'parent_id', 'INTEGER'), ('users', 'ucode', 'TEXT'),
+                            ('users', 'home', "TEXT DEFAULT ''"), ('users', 'mods', "TEXT DEFAULT '[]'"), ('users', 'profile', "TEXT DEFAULT '{}'"), ('events', 'tenant', "TEXT DEFAULT ''")):
+            try: self.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (t, col, ddl))
+            except sqlite3.OperationalError: pass
+        self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS u_ucode ON users(ucode)'); self.db.execute('CREATE INDEX IF NOT EXISTS u_ten ON users(tenant_id)')
+        self.tcodes = {}
         sp = os.path.join(cfg['data_dir'], 'secret.key')
         if not os.path.exists(sp):
             fd = os.open(sp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600); os.write(fd, secrets.token_bytes(48)); os.close(fd)
@@ -123,7 +137,52 @@ class Hub:
         except Exception: return None
     def issue(self, u, days=None):
         return self.sign({'u': u['id'], 'tv': u['tv'], 'exp': now() + 86400 * (days or self.cfg['token_ttl_days'])})
+    # ── tenancy helpers ──
+    def tcode(self, u):
+        t = u.get('tenant_id') if u else None
+        if not t: return ''
+        if t not in self.tcodes: r = self.one('SELECT code FROM tenants WHERE id=?', (t,)); self.tcodes[t] = r['code'] if r else 'T?'
+        return self.tcodes[t]
+    def ss(self, u, site):  # storage key of a site: each subscription gets its own isolated copy of every site's data
+        c = self.tcode(u); return site + '~' + c if c else site
+    def sub(self, tid):
+        r = self.one("SELECT * FROM subscriptions WHERE tenant_id=? ORDER BY id DESC LIMIT 1", (tid,))
+        return dict(r) if r else None
+    def sub_ok(self, tid):
+        t = self.one('SELECT status FROM tenants WHERE id=?', (tid,)); s = self.sub(tid)
+        return bool(t and t['status'] == 'active' and s and s['status'] == 'active' and (not s['ends'] or s['ends'] > now()))
+    def umods(self, u):  # modules a tenant user may use
+        if not u.get('tenant_id'): return None
+        s = self.sub(u['tenant_id'])
+        if not s or not self.sub_ok(u['tenant_id']): return []
+        allowed = json.loads(s['modules'] or '[]')
+        if u['role'] == 'owner': return allowed
+        mine = json.loads(u.get('mods') or '[]'); return [m for m in allowed if m in mine]
+    def home(self, u):
+        if u['role'] in ('admin', 'owner'): return '/admin/'
+        mods = self.umods(u)
+        order = ([u['home']] if u.get('home') else []) + (mods if mods is not None else [g for g in self.grants(u)])
+        for slug in order:
+            m = self.module(slug)
+            if m and m['path'] and m['status'] in ('live', 'beta') and (mods is None or slug in mods): return m['path']
+            if mods is None and slug in ('msp-bi', 'aide'): return '/' + slug + '/'
+        return '/'
+    def session(self, u):
+        t = None
+        if u.get('tenant_id'):
+            tr = self.one('SELECT id,code,name,status,levels FROM tenants WHERE id=?', (u['tenant_id'],)); s = self.sub(u['tenant_id'])
+            t = {'code': tr['code'], 'name': tr['name'], 'status': tr['status'], 'levels': json.loads(tr['levels'] or '[]'), 'active': self.sub_ok(u['tenant_id']),
+                 'ends': s['ends'] if s else None, 'plan': s['plan'] if s else ''}
+        return {'user': self.pub(u), 'grants': self.grants(u), 'must_change': self.mc(u), 'tenant': t, 'ucode': u.get('ucode') or '', 'level': u.get('level') or 0,
+                'modules': self.umods(u), 'home': self.home(u), 'panel': u['role'] in ('admin', 'owner'), 'profile': json.loads(u.get('profile') or '{}')}
+
     def grants(self, u):
+        if u.get('tenant_id'):
+            out = {}
+            for slug in self.umods(u) or []:
+                m = self.module(slug)
+                if m and m['site']: out[m['site']] = 'manager' if u['role'] == 'owner' else ('viewer' if u['role'] == 'viewer' else 'member')
+            return out
         if u['role'] == 'admin': return {s['slug']: 'admin' for s in self.all('SELECT slug FROM sites WHERE active=1')}
         return {g['site']: g['role'] for g in self.all('SELECT g.site,g.role FROM grants g JOIN sites s ON s.slug=g.site WHERE g.user_id=? AND s.active=1', (u['id'],))}
     def pub(self, u): return {'id': u['id'], 'code': u['code'], 'name': u['name'], 'role': u['role']}
@@ -135,7 +194,7 @@ class Hub:
     def login(self, code, pin, device, ip):
         k = (ip + '|' + str(code)).lower()[:80]; f = self.one('SELECT * FROM fails WHERE k=?', (k,))
         if f and f['n'] >= 5 and now() - f['first'] < 600: return None, 'locked'
-        u = self.one('SELECT * FROM users WHERE code=? COLLATE NOCASE', (str(code),))
+        u = self.one('SELECT * FROM users WHERE code=? COLLATE NOCASE OR ucode=? COLLATE NOCASE', (str(code), str(code)))
         ok = False
         if u and u['active'] and u['pin_hash'] and u['role'] != 'service':
             ok = hmac.compare_digest(self.hash_pin(str(pin), bytes.fromhex(u['salt'])), u['pin_hash'])
@@ -150,6 +209,7 @@ class Hub:
     def put(self, u, site, coll, rid, data, base, op_id=None, delete=False):
         if not (SLUG.match(site) and SLUG.match(coll) and ID.match(rid)): return 400, {'error': 'bad-path'}
         if not self.can(u, site, True): return 403, {'error': 'forbidden'}
+        site = self.ss(u, site)
         with self.lock:
             if op_id:
                 d = self.one('SELECT result FROM ops WHERE op_id=?', (op_id,))
@@ -183,6 +243,7 @@ class Hub:
         return []
     def feed(self, u, site, coll, since, limit):
         if not self.can(u, site, False): return 403, {'error': 'forbidden'}
+        site = self.ss(u, site)
         rows = self.all('SELECT c.seq,c.id,c.op,r.data,r.rev,r.deleted,r.updated,r.updated_by FROM changes c JOIN records r ON r.site=c.site AND r.coll=c.coll AND r.id=c.id '
                         'WHERE c.site=? AND c.coll=? AND c.seq>? AND c.rev=r.rev ORDER BY c.seq LIMIT ?', (site, coll, since, min(limit, 1000)))
         items = [{'id': r['id'], 'rev': r['rev'], 'deleted': bool(r['deleted']), 'data': None if r['deleted'] else json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']} for r in rows]
@@ -190,6 +251,7 @@ class Hub:
         return 200, {'items': items, 'seq': rows[-1]['seq'] if rows else since, 'head': mx}
     def snapshot(self, u, site, coll, limit=None, after=''):
         if not self.can(u, site, False): return 403, {'error': 'forbidden'}
+        site = self.ss(u, site)
         if limit:
             limit = max(1, min(int(limit), 1000))
             rows = self.all('SELECT id,data,rev,updated,updated_by FROM records WHERE site=? AND coll=? AND deleted=0 AND id>? ORDER BY id LIMIT ?', (site, coll, after, limit))
@@ -205,6 +267,7 @@ class Hub:
             self.q('INSERT OR IGNORE INTO modules(slug,name_fa,name_en,status,path,site,color,icon,ord,summary_en,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)', m + (i, MOD_SUMMARY.get(m[0], ''), now()))
     def module(self, slug): return self.one('SELECT * FROM modules WHERE slug=?', (slug,))
     def mod_access(self, u, m, write=False):
+        if u.get('tenant_id'): return bool(m) and m['slug'] in (self.umods(u) or []) and (not write or u['role'] != 'viewer')
         if u['role'] == 'admin': return True
         site = m['site'] if m else ''
         return bool(site) and self.can(u, site, write)
@@ -214,12 +277,12 @@ class Hub:
         if not self.mod_access(u, m, True): return 403, {'error': 'forbidden'}
         pl = json.dumps(b.get('payload') or {}, ensure_ascii=False)
         if len(pl) > 16 * 1024: return 413, {'error': 'too-large'}
-        c = self.q('INSERT INTO events(ts,module,type,entity,entity_id,project,actor,payload) VALUES(?,?,?,?,?,?,?,?)', (now(), mod, typ, str(b.get('entity', ''))[:60], str(b.get('entity_id', ''))[:120], str(b.get('project', ''))[:60], u['code'], pl))
+        c = self.q('INSERT INTO events(ts,module,type,entity,entity_id,project,actor,payload,tenant) VALUES(?,?,?,?,?,?,?,?,?)', (now(), mod, typ, str(b.get('entity', ''))[:60], str(b.get('entity_id', ''))[:120], str(b.get('project', ''))[:60], u['code'], pl, self.tcode(u)))
         return 200, {'ok': True, 'seq': c.lastrowid}
     def events(self, u, since=0, module='', project='', typ='', limit=200):
         mods = [m['slug'] for m in self.all('SELECT * FROM modules') if self.mod_access(u, m)]
         if not mods: return {'items': [], 'seq': since}
-        w = ['seq>?', 'module IN (%s)' % ','.join('?' * len(mods))]; a = [since] + mods
+        w = ['seq>?', 'tenant=?', 'module IN (%s)' % ','.join('?' * len(mods))]; a = [since, self.tcode(u)] + mods
         if module: w.append('module=?'); a.append(module)
         if project: w.append('project=?'); a.append(project)
         if typ: w.append('type LIKE ?'); a.append(typ.rstrip('*') + '%' if typ.endswith('*') else typ)
@@ -233,16 +296,18 @@ class Hub:
             m = self.module(str(e.get('module', '')))
             if not m or not str(e.get('type', '')) or not str(e.get('id', '')): return 400, {'error': 'bad-relation'}
             if not self.mod_access(u, m, True): return 403, {'error': 'forbidden'}
-            ends.append((m['slug'], str(e['type'])[:40], str(e['id'])[:120]))
+            ends.append((m['slug'], str(e['type'])[:40], self.tp(u) + str(e['id'])[:120]))
         self.q('INSERT OR IGNORE INTO relations(a_module,a_type,a_id,b_module,b_type,b_id,rel,ts,by) VALUES(?,?,?,?,?,?,?,?,?)', ends[0] + ends[1] + (rel, now(), u['code']))
         return 200, {'ok': True}
+    def tp(self, u): c = self.tcode(u); return c + ':' if c else ''
     def relations(self, u, module, typ, rid):
+        rid = self.tp(u) + rid; pre = self.tp(u)
         rows = self.all('SELECT * FROM relations WHERE (a_module=? AND a_type=? AND a_id=?) OR (b_module=? AND b_type=? AND b_id=?) ORDER BY id', (module, typ, rid, module, typ, rid))
         ok = {}; out = []
         for r in rows:
             other = (r['b_module'], r['b_type'], r['b_id']) if (r['a_module'], r['a_type'], r['a_id']) == (module, typ, rid) else (r['a_module'], r['a_type'], r['a_id'])
             if other[0] not in ok: ok[other[0]] = self.mod_access(u, self.module(other[0]))
-            if ok[other[0]]: out.append({'module': other[0], 'type': other[1], 'id': other[2], 'rel': r['rel'], 'ts': r['ts'], 'by': r['by']})
+            if ok[other[0]]: out.append({'module': other[0], 'type': other[1], 'id': other[2][len(pre):] if pre and other[2].startswith(pre) else other[2], 'rel': r['rel'], 'ts': r['ts'], 'by': r['by']})
         return out
 
     def stats(self):
@@ -346,11 +411,18 @@ class H(BaseHTTPRequestHandler):
                 r['access'] = bool(uu) and hub.mod_access(uu, r)
                 if not uu: r.pop('site', None)
             self._etag = True; return self.send(200, {'modules': rows})
+        if seg == ['signup'] and m == 'POST':
+            b = self.body(); ip = self.ip()
+            if not str(b.get('name', '')).strip() or not (str(b.get('phone', '')).strip() or str(b.get('email', '')).strip()): return self.send(400, {'error': 'invalid'})
+            if hub.one('SELECT COUNT(*) n FROM signups WHERE ip=? AND ts>?', (ip, now() - 3600))['n'] >= 5: return self.send(429, {'error': 'rate-limited'})
+            hub.q('INSERT INTO signups(ts,name,company,phone,email,note,ip) VALUES(?,?,?,?,?,?,?)', (now(), str(b['name'])[:80], str(b.get('company', ''))[:80], str(b.get('phone', ''))[:30], str(b.get('email', ''))[:80], str(b.get('note', ''))[:500], ip))
+            return self.send(200, {'ok': True})
         if seg == ['auth', 'login'] and m == 'POST':
             b = self.body(); u, err = hub.login(b.get('code', ''), b.get('pin', ''), str(b.get('device', ''))[:60], self.ip())
             if err == 'locked': return self.send(429, {'error': 'locked', 'retry_after': 600})
             if not u: return self.send(401, {'error': 'bad-credentials'})
-            return self.send(200, {'token': hub.issue(u), 'user': hub.pub(u), 'grants': hub.grants(u), 'must_change': hub.mc(u)})
+            if u.get('tenant_id') and u['role'] != 'owner' and not hub.sub_ok(u['tenant_id']): return self.send(403, {'error': 'subscription-inactive'})
+            out = hub.session(u); out['token'] = hub.issue(u, None if b.get('remember', True) else 1); return self.send(200, out)
         u = self.user()
         if not u: return self.send(401, {'error': 'unauthorized'})
         self.touch(u)
@@ -362,7 +434,16 @@ class H(BaseHTTPRequestHandler):
             if err == 'locked': return self.send(429, {'error': 'locked'})
             if not u2: return self.send(401, {'error': 'bad-credentials'})
             hub.set_pin(u['id'], new, False); hub.log(u['code'], 'pin-change', '', '', self.ip()); return self.send(200, {'token': hub.issue(dict(hub.one('SELECT * FROM users WHERE id=?', (u['id'],))))})
-        if seg == ['me']: return self.send(200, {'user': hub.pub(u), 'grants': hub.grants(u), 'must_change': hub.mc(u)})
+        if seg == ['me']: return self.send(200, hub.session(u))
+        if seg == ['me', 'profile'] and m == 'PATCH':
+            b = self.body(); pr = json.loads(u.get('profile') or '{}')
+            for k in ('phone', 'email', 'title', 'bio'):
+                if k in b: pr[k] = str(b[k])[:120]
+            hub.q('UPDATE users SET profile=?' + (',name=?' if b.get('name') else '') + ' WHERE id=?', (json.dumps(pr, ensure_ascii=False),) + ((str(b['name'])[:80],) if b.get('name') else ()) + (u['id'],))
+            return self.send(200, hub.session(dict(hub.one('SELECT * FROM users WHERE id=?', (u['id'],)))))
+        if seg[0] == 'panel':
+            if u['role'] != 'owner' or not u.get('tenant_id'): return self.send(403, {'error': 'forbidden'})
+            return self.panel(m, seg[1:], u)
         if seg == ['sites'] and m == 'GET':
             g = hub.grants(u); self._etag = True; return self.send(200, {'sites': [s for s in hub.all('SELECT slug,title,path,kind FROM sites WHERE active=1') if s['slug'] in g]})
         if seg[0] == 'directory' and m == 'GET':
@@ -380,7 +461,7 @@ class H(BaseHTTPRequestHandler):
                 self._etag = True; return self.send(c, r)
             if len(seg) == 4 and m == 'GET':
                 if not hub.can(u, site, False): return self.send(403, {'error': 'forbidden'})
-                r = hub.one('SELECT id,data,rev,deleted,updated,updated_by FROM records WHERE site=? AND coll=? AND id=?', (site, coll, seg[3]))
+                r = hub.one('SELECT id,data,rev,deleted,updated,updated_by FROM records WHERE site=? AND coll=? AND id=?', (hub.ss(u, site), coll, seg[3]))
                 if not r or r['deleted']: return self.send(404, {'error': 'not-found', 'rev': r['rev'] if r else 0})
                 self._etag = True; return self.send(200, {'id': r['id'], 'rev': r['rev'], 'data': json.loads(r['data']), 'updated': r['updated'], 'by': r['updated_by']})
             if len(seg) == 4 and m in ('PUT', 'DELETE'):
@@ -405,12 +486,96 @@ class H(BaseHTTPRequestHandler):
         if seg == ['ai'] and m == 'POST': return self.ai(u)
         if seg == ['ai', 'stream'] and m == 'POST': return self.ai(u, stream=True)
         if seg[0] == 'admin':
-            if u['role'] != 'admin': return self.send(403, {'error': 'forbidden'})
+            if u['role'] != 'admin' or u.get('tenant_id'): return self.send(403, {'error': 'forbidden'})
             return self.admin(m, seg[1:], u)
+        self.send(404, {'error': 'not-found'})
+    # ── subscriptions (ecosystem admin) ──
+    def sub_create(self, tid, b):
+        hub = self.hub; mods = [x for x in (b.get('modules') or []) if hub.module(x)]
+        try: seats = max(1, min(int(b.get('seats', 5)), 10000)); lv = max(1, min(int(b.get('max_levels', 3)), MAX_LEVELS)); months = max(0, min(int(b.get('months', 12)), 120))
+        except (TypeError, ValueError): return 400, {'error': 'invalid'}
+        if not mods: return 400, {'error': 'no-modules'}
+        ends = float(b['ends']) if b.get('ends') else (now() + months * 30.4375 * 86400 if months else None)
+        st = b.get('status', 'active') if b.get('status', 'active') in ('active', 'paused', 'cancelled') else 'active'
+        c = hub.q('INSERT INTO subscriptions(tenant_id,plan,modules,seats,max_levels,starts,ends,status,price,note,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                  (tid, str(b.get('plan', ''))[:40], json.dumps(mods), seats, lv, now(), ends, st, str(b.get('price', ''))[:40], str(b.get('note', ''))[:300], now()))
+        return 200, {'ok': True, 'id': c.lastrowid, 'ends': ends}
+    def tenant_create(self, b, adm):
+        hub = self.hub; name = str(b.get('name', '')).strip(); ow = b.get('owner') or {}; un = str(ow.get('username', '')).strip(); on = str(ow.get('name', '')).strip()
+        if not name or not on or not CODE.match(un): return 400, {'error': 'invalid'}
+        if hub.one('SELECT 1 FROM users WHERE code=? COLLATE NOCASE', (un,)): return 409, {'error': 'code-exists'}
+        n = (hub.one('SELECT MAX(id) m FROM tenants')['m'] or 0) + 1; code = 'T%03d' % n
+        while hub.one('SELECT 1 FROM tenants WHERE code=?', (code,)): n += 1; code = 'T%03d' % n
+        tid = hub.q('INSERT INTO tenants(code,name,status,created,levels,contact) VALUES(?,?,?,?,?,?)', (code, name[:80], 'active', now(), json.dumps(b.get('levels') or []), json.dumps(b.get('contact') or {}, ensure_ascii=False))).lastrowid
+        c, r = self.sub_create(tid, b)
+        if c != 200: hub.q('DELETE FROM tenants WHERE id=?', (tid,)); return c, r
+        pw = str(ow.get('password') or DEFAULT_PIN)
+        uid = hub.q("INSERT INTO users(code,name,role,created,tenant_id,level,ucode) VALUES(?,?,'owner',?,?,0,?)", (un, on[:80], now(), tid, code + '-0001')).lastrowid
+        hub.set_pin(uid, pw, mc=(pw == DEFAULT_PIN and hub.mc_default())); hub.log(adm['code'], 'tenant-create', code)
+        return 200, {'ok': True, 'id': tid, 'code': code, 'owner': {'username': un, 'password': pw, 'ucode': code + '-0001'}}
+    # ── panel of a subscription admin (owner) ──
+    def panel(self, m, seg, own):
+        hub = self.hub; tid = own['tenant_id']; t = hub.one('SELECT * FROM tenants WHERE id=?', (tid,)); s = hub.sub(tid) or {}
+        mx = int(s.get('max_levels') or 1); allowed = json.loads(s.get('modules') or '[]'); seats = int(s.get('seats') or 0)
+        used = lambda: hub.one('SELECT COUNT(*) n FROM users WHERE tenant_id=? AND active=1', (tid,))['n']
+        def clean_mods(x): return [v for v in (x or []) if v in allowed]
+        if seg == ['overview'] and m == 'GET':
+            mods = [dict(r) for r in hub.all('SELECT slug,name_fa,name_en,status,path FROM modules ORDER BY ord') if r['slug'] in allowed]
+            return self.send(200, {'tenant': {'code': t['code'], 'name': t['name'], 'status': t['status'], 'levels': json.loads(t['levels'] or '[]')}, 'active': hub.sub_ok(tid),
+                                   'sub': {'plan': s.get('plan'), 'ends': s.get('ends'), 'status': s.get('status'), 'seats': seats, 'max_levels': mx}, 'used': used(), 'modules': mods})
+        if seg == ['levels'] and m == 'PUT':
+            names = [str(x)[:40] for x in (self.body().get('names') or [])][:mx]
+            hub.q('UPDATE tenants SET levels=? WHERE id=?', (json.dumps(names, ensure_ascii=False), tid)); return self.send(200, {'ok': True, 'levels': names})
+        if seg == ['users'] and m == 'GET':
+            us = hub.all('SELECT id,code,name,role,level,parent_id,ucode,active,last_login,mods,home,profile FROM users WHERE tenant_id=? ORDER BY level,id', (tid,))
+            for x in us: x['mods'] = json.loads(x['mods'] or '[]'); x['profile'] = json.loads(x['profile'] or '{}')
+            return self.send(200, {'users': us})
+        if seg == ['users'] and m == 'POST':
+            b = self.body(); un = str(b.get('username', '')).strip(); nm = str(b.get('name', '')).strip()
+            try: lv = int(b.get('level', 1))
+            except (TypeError, ValueError): lv = 0
+            if not CODE.match(un) or not nm: return self.send(400, {'error': 'invalid'})
+            if not 1 <= lv <= mx: return self.send(400, {'error': 'level-out-of-range', 'max_levels': mx})
+            if used() >= seats: return self.send(409, {'error': 'no-seats', 'seats': seats})
+            if hub.one('SELECT 1 FROM users WHERE code=? COLLATE NOCASE', (un,)): return self.send(409, {'error': 'code-exists'})
+            mods = clean_mods(b.get('mods')) or allowed[:1]; home = b.get('home') if b.get('home') in mods else mods[0]
+            n = hub.one('SELECT COUNT(*) n FROM users WHERE tenant_id=?', (tid,))['n'] + 1; uc = '%s-%04d' % (t['code'], n)
+            while hub.one('SELECT 1 FROM users WHERE ucode=?', (uc,)): n += 1; uc = '%s-%04d' % (t['code'], n)
+            par = b.get('parent_id') if b.get('parent_id') and hub.one('SELECT 1 FROM users WHERE id=? AND tenant_id=?', (b.get('parent_id'), tid)) else None
+            role = 'viewer' if b.get('readonly') else 'member'; pw = str(b.get('password') or DEFAULT_PIN)
+            if len(pw) < 4: return self.send(400, {'error': 'pin-short'})
+            uid = hub.q('INSERT INTO users(code,name,role,created,tenant_id,level,parent_id,ucode,mods,home) VALUES(?,?,?,?,?,?,?,?,?,?)', (un, nm[:80], role, now(), tid, lv, par, uc, json.dumps(mods), home)).lastrowid
+            hub.set_pin(uid, pw, mc=(pw == DEFAULT_PIN and hub.mc_default())); hub.log(own['code'], 'panel-user-create', uc)
+            return self.send(200, {'id': uid, 'ucode': uc, 'username': un, 'password': pw})
+        if len(seg) >= 2 and seg[0] == 'users' and seg[1].isdigit():
+            x = hub.one('SELECT * FROM users WHERE id=? AND tenant_id=?', (int(seg[1]), tid))
+            if not x: return self.send(404, {'error': 'not-found'})
+            if len(seg) == 3 and seg[2] == 'reset' and m == 'POST':
+                if x['role'] == 'owner': return self.send(400, {'error': 'use-change-pin'})
+                hub.set_pin(x['id'], DEFAULT_PIN, mc=hub.mc_default()); hub.log(own['code'], 'panel-user-reset', x['ucode']); return self.send(200, {'password': DEFAULT_PIN})
+            if len(seg) == 2 and m == 'PATCH':
+                b = self.body()
+                if x['role'] == 'owner' and ('active' in b or 'level' in b): return self.send(400, {'error': 'owner-locked'})
+                if 'level' in b:
+                    try: lv = int(b['level'])
+                    except (TypeError, ValueError): lv = 0
+                    if not 1 <= lv <= mx: return self.send(400, {'error': 'level-out-of-range', 'max_levels': mx})
+                    hub.q('UPDATE users SET level=? WHERE id=?', (lv, x['id']))
+                if 'active' in b:
+                    if b['active'] and not x['active'] and used() >= seats: return self.send(409, {'error': 'no-seats', 'seats': seats})
+                    hub.q('UPDATE users SET active=?,tv=tv+1 WHERE id=?', (1 if b['active'] else 0, x['id']))
+                if b.get('name'): hub.q('UPDATE users SET name=? WHERE id=?', (str(b['name'])[:80], x['id']))
+                if 'mods' in b and x['role'] != 'owner':
+                    mods = clean_mods(b['mods']) or allowed[:1]; hub.q('UPDATE users SET mods=?,home=? WHERE id=?', (json.dumps(mods), b.get('home') if b.get('home') in mods else mods[0], x['id']))
+                elif b.get('home') in json.loads(x['mods'] or '[]'): hub.q('UPDATE users SET home=? WHERE id=?', (b['home'], x['id']))
+                if 'parent_id' in b: hub.q('UPDATE users SET parent_id=? WHERE id=?', (b['parent_id'] if b['parent_id'] and hub.one('SELECT 1 FROM users WHERE id=? AND tenant_id=?', (b['parent_id'], tid)) and b['parent_id'] != x['id'] else None, x['id']))
+                if 'readonly' in b and x['role'] != 'owner': hub.q('UPDATE users SET role=?,tv=tv+1 WHERE id=?', ('viewer' if b['readonly'] else 'member', x['id']))
+                hub.log(own['code'], 'panel-user-update', x['ucode']); return self.send(200, {'ok': True})
         self.send(404, {'error': 'not-found'})
     def stream(self, u):
         qs = parse_qs(urlparse(self.path).query); site = (qs.get('site') or [''])[0]; coll = (qs.get('coll') or [''])[0]
         if not self.hub.can(u, site, False): return self.send(403, {'error': 'forbidden'})
+        site = self.hub.ss(u, site)
         self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.send_header('Cache-Control', 'no-store'); self.send_header('X-Accel-Buffering', 'no'); self.send_header('Connection', 'close'); self.end_headers()
         self.close_connection = True; last = int((qs.get('since') or [0])[0]); t0 = now()
         try:
@@ -462,17 +627,47 @@ class H(BaseHTTPRequestHandler):
             hub.q('INSERT OR REPLACE INTO modules(slug,name_fa,name_en,status,path,site,color,icon,ord,summary_en,updated) VALUES(?,?,?,?,?,?,?,?,COALESCE(?,(SELECT ord FROM modules WHERE slug=?),99),?,?)',
                   (slug, str(b['name_fa'])[:60], str(b['name_en'])[:60], b.get('status', 'planned'), str(b.get('path', ''))[:80], str(b.get('site', ''))[:40], str(b.get('color', ''))[:20], str(b.get('icon', ''))[:20], b.get('ord'), slug, str(b.get('summary_en', ''))[:300], now()))
             hub.log(adm['code'], 'module-save', slug); return self.send(200, {'ok': True})
+        if seg == ['tenants'] and m == 'GET':
+            out = []
+            for t in hub.all('SELECT * FROM tenants ORDER BY id'):
+                s = hub.sub(t['id']); o = hub.one("SELECT id,code,name,ucode FROM users WHERE tenant_id=? AND role='owner' ORDER BY id LIMIT 1", (t['id'],))
+                out.append({**t, 'levels': json.loads(t['levels'] or '[]'), 'contact': json.loads(t['contact'] or '{}'), 'sub': dict(s, modules=json.loads(s['modules'] or '[]')) if s else None, 'active': hub.sub_ok(t['id']),
+                            'users': hub.one('SELECT COUNT(*) n FROM users WHERE tenant_id=? AND active=1', (t['id'],))['n'], 'owner': dict(o) if o else None})
+            return self.send(200, {'tenants': out})
+        if seg == ['tenants'] and m == 'POST': c, r = self.tenant_create(self.body(), adm); return self.send(c, r)
+        if len(seg) >= 2 and seg[0] == 'tenants' and seg[1].isdigit():
+            tid = int(seg[1]); t = hub.one('SELECT * FROM tenants WHERE id=?', (tid,))
+            if not t: return self.send(404, {'error': 'not-found'})
+            if len(seg) == 2 and m == 'GET':
+                users = hub.all('SELECT id,code,name,role,level,ucode,active,last_login,mods,home FROM users WHERE tenant_id=? ORDER BY level,id', (tid,))
+                for x in users: x['mods'] = json.loads(x['mods'] or '[]')
+                subs = hub.all('SELECT * FROM subscriptions WHERE tenant_id=? ORDER BY id DESC', (tid,))
+                for x in subs: x['modules'] = json.loads(x['modules'] or '[]')
+                return self.send(200, {'tenant': {**dict(t), 'levels': json.loads(t['levels'] or '[]'), 'contact': json.loads(t['contact'] or '{}')}, 'subs': subs, 'users': users, 'active': hub.sub_ok(tid)})
+            if len(seg) == 2 and m == 'PATCH':
+                b = self.body()
+                if b.get('status') in ('active', 'suspended'): hub.q('UPDATE tenants SET status=? WHERE id=?', (b['status'], tid))
+                if b.get('name'): hub.q('UPDATE tenants SET name=? WHERE id=?', (str(b['name'])[:80], tid))
+                if isinstance(b.get('contact'), dict): hub.q('UPDATE tenants SET contact=? WHERE id=?', (json.dumps({k: str(v)[:120] for k, v in b['contact'].items()}, ensure_ascii=False), tid))
+                hub.log(adm['code'], 'tenant-update', t['code']); return self.send(200, {'ok': True})
+            if len(seg) == 3 and seg[2] == 'subscription' and m == 'POST':
+                c, r = self.sub_create(tid, self.body()); hub.log(adm['code'], 'subscription', t['code']); return self.send(c, r)
+        if seg == ['signups'] and m == 'GET': return self.send(200, {'items': hub.all('SELECT * FROM signups ORDER BY id DESC LIMIT 200')})
+        if len(seg) == 2 and seg[0] == 'signups' and seg[1].isdigit() and m == 'PATCH':
+            st = self.body().get('status')
+            if st not in ('new', 'contacted', 'converted', 'rejected'): return self.send(400, {'error': 'invalid'})
+            hub.q('UPDATE signups SET status=? WHERE id=?', (st, int(seg[1]))); return self.send(200, {'ok': True})
         if seg == ['clients']: return self.send(200, {'items': hub.all('SELECT device,user,last_seen,pending,conflicts,ua,ip FROM clients ORDER BY last_seen DESC LIMIT 200')})
         if seg == ['backup'] and m == 'POST': n = hub.backup(); hub.log(adm['code'], 'backup', n); return self.send(200, {'file': n})
         if seg == ['export'] and m == 'GET': hub.log(adm['code'], 'export'); return self.send(200, hub.export())
         if seg == ['users']:
             if m == 'GET':
-                us = hub.all('SELECT id,code,name,role,active,created,last_login,meta FROM users ORDER BY id'); gs = hub.all('SELECT * FROM grants')
+                us = hub.all('SELECT id,code,name,role,active,created,last_login,meta FROM users WHERE tenant_id IS NULL ORDER BY id'); gs = hub.all('SELECT * FROM grants')
                 for x in us: x['grants'] = {g['site']: g['role'] for g in gs if g['user_id'] == x['id']}; x['must_change'] = hub.mc(x); del x['meta']
                 return self.send(200, {'users': us})
             if m == 'POST':
                 b = self.body(); code = str(b.get('code', '')).strip(); name = str(b.get('name', '')).strip(); role = b.get('role', 'member')
-                if not CODE.match(code) or not name or role not in ROLES: return self.send(400, {'error': 'invalid'})
+                if not CODE.match(code) or not name or role not in ROLES or role == 'owner': return self.send(400, {'error': 'invalid'})
                 if hub.one('SELECT 1 FROM users WHERE code=? COLLATE NOCASE', (code,)): return self.send(409, {'error': 'code-exists'})
                 pin = str(b.get('pin') or DEFAULT_PIN)
                 if len(pin) < 4: return self.send(400, {'error': 'pin-short'})
