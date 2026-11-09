@@ -9,6 +9,7 @@
 <title>{brand} · IV — کنترل پنل کاربران</title>
 <link rel="icon" data-brand="favicon" href="data:,">
 <script src="../shared/brand.js"></script>
+<script src="../shared/demo.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Vazirmatn:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <style>
@@ -52,7 +53,7 @@ label.f{display:grid;gap:5px;font-size:13px;color:var(--muted)}
 .pw{position:relative}.pw button{position:absolute;inset-inline-start:6px;top:50%;transform:translateY(-50%);min-height:30px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px}
 .pw input{padding-inline-start:64px}
 /* ── پنل ── */
-#app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+#app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
 nav.side{border-inline-end:1px solid var(--line);background:rgba(5,12,40,.55);padding:18px 12px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
 nav.side .brand{padding:4px 8px 14px}
 nav.side button{display:flex;align-items:center;gap:10px;text-align:start;border:0;background:none;padding:10px 12px;border-radius:11px;cursor:pointer;color:var(--muted);font-weight:500}
@@ -60,7 +61,7 @@ nav.side button[aria-current=page]{background:var(--card2);color:var(--ink);box-
 nav.side button:hover,nav.side button:focus-visible{color:var(--ink);outline:none;background:rgba(47,123,255,.12)}
 nav.side .me{margin-top:auto;border-top:1px solid var(--line);padding:12px 8px 0;font-size:12.5px;color:var(--muted)}
 nav.side .me b{display:block;color:var(--ink);font-size:14px}
-main.pg{padding:clamp(16px,3vw,32px);max-width:1200px;width:100%}
+main.pg{padding:clamp(16px,3vw,32px);max-width:1200px;width:100%;min-width:0}
 .head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .head h1{margin:0;font-size:22px}.head p{margin:2px 0 0;color:var(--muted);font-size:13px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;backdrop-filter:blur(8px)}
@@ -176,7 +177,7 @@ var NAV_ADMIN=[['overview','نمای کلی'],['tenants','اشتراک‌ها'],
 var NAV_OWNER=[['overview','نمای کلی'],['users','کاربران'],['levels','سطوح'],['profile','پروفایل من']];
 function isAdmin(){return S&&S.user.role==='admin'&&!S.tenant}
 function buildNav(){var n=isAdmin()?NAV_ADMIN:NAV_OWNER;
- $('#nav').innerHTML='<div class="brand"><img src="'+esc(BRAND.logo)+'" alt=""><div><b>'+esc(BRAND.name)+'</b><small>'+(isAdmin()?'مدیریت اکوسیستم':esc(S.tenant.name))+'</small></div></div>'+n.map(function(x){return '<button type="button" data-go="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<div class="me"><b>'+esc(S.user.name)+'</b><span class="mono">'+esc(S.ucode||S.user.code)+'</span><div class="row" style="margin-top:8px"><a class="btn s" href="/">صفحه‌ی اصلی</a><button class="btn s" type="button" id="lo">خروج</button></div></div>';
+ $('#nav').innerHTML='<div class="brand"><img src="'+esc(BRAND.logo)+'" alt=""><div><b>'+esc(BRAND.name)+'</b><small>'+(isAdmin()?'مدیریت اکوسیستم':esc(S.tenant.name))+'</small></div></div>'+n.map(function(x){return '<button type="button" data-go="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<div class="me"><b>'+esc(S.user.name)+'</b><span class="mono">'+esc(S.ucode||S.user.code)+'</span><div class="row" style="margin-top:8px"><a class="btn s" href="'+esc(BRAND.base)+'">صفحه‌ی اصلی</a><button class="btn s" type="button" id="lo">خروج</button></div></div>';
  $('#lo').onclick=logout}
 $('#nav').addEventListener('click',function(e){var b=e.target.closest('[data-go]');if(b)go(b.dataset.go)});
 addEventListener('hashchange',function(){if(S&&!$('#app').hidden)go(location.hash.slice(1)||'overview',true)});
@@ -224,7 +225,7 @@ function subFields(s){s=s||{};return '<div class="grid g2"><label class="f">نا
 function subBody(f){return {plan:f.plan.value,months:+f.months.value,seats:+f.seats.value,max_levels:+f.max_levels.value,price:f.price.value,note:f.note.value,modules:picked(f,'mods')}}
 function newTenant(){openDlg('<form><h2>اشتراک جدید</h2><label class="f">نام شرکت<input name="name" required></label><div class="grid g2"><label class="f">نام مدیر اشتراک<input name="oname" required></label><label class="f">نام کاربری مدیر<input name="ouser" class="ltr" required></label><label class="f">رمز اولیه (خالی = پیش‌فرض)<input name="opw" class="ltr"></label><label class="f">تلفن تماس<input name="phone" class="ltr" inputmode="tel"></label></div>'+subFields()+'<div class="err" role="alert"></div><div class="row"><button class="btn p">ساخت اشتراک</button><button class="btn" type="button" data-close>انصراف</button></div></form>',function(f){
  f.onsubmit=function(e){e.preventDefault();var b=subBody(f);b.name=f.name.value;b.owner={name:f.oname.value,username:f.ouser.value.trim(),password:f.opw.value||undefined};b.contact={phone:f.phone.value};
-  api('POST','/admin/tenants',b).then(function(x){$('#dlg').innerHTML='<div class="dl"><h2>اشتراک '+esc(x.code)+' ساخته شد</h2>'+secretBox([['نام کاربری مدیر',x.owner.username],['کد اختصاصی',x.owner.ucode],['رمز اولیه',x.owner.password],['نشانی ورود',location.origin+'/admin/']])+'<button class="btn" data-close>بستن</button></div>';$('#dlg [data-close]').onclick=function(){closeDlg();go('tenants')}}).catch(function(x){f.querySelector('.err').textContent=emsg(x)})}})}
+  api('POST','/admin/tenants',b).then(function(x){$('#dlg').innerHTML='<div class="dl"><h2>اشتراک '+esc(x.code)+' ساخته شد</h2>'+secretBox([['نام کاربری مدیر',x.owner.username],['کد اختصاصی',x.owner.ucode],['رمز اولیه',x.owner.password],['نشانی ورود',BRAND.base+'admin/']])+'<button class="btn" data-close>بستن</button></div>';$('#dlg [data-close]').onclick=function(){closeDlg();go('tenants')}}).catch(function(x){f.querySelector('.err').textContent=emsg(x)})}})}
 function tenantDetail(id){api('GET','/admin/tenants/'+id).then(function(r){var t=r.tenant,s=r.subs[0]||{},lv=t.levels||[];
  openDlg('<div class="dl"><div class="row" style="justify-content:space-between"><h2>'+esc(t.name)+' <span class="mono" style="color:var(--muted);font-size:14px">'+esc(t.code)+'</span></h2>'+stChip(r.active,t.status)+'</div>'+
  '<div class="grid g4">'+[['بسته',s.plan||'—'],['پایان',fmtD(s.ends)],['کاربران',fa(r.users.filter(function(u){return u.active}).length)+' از '+fa(s.seats)],['سطوح',fa(s.max_levels)]].map(function(k){return '<div class="card kpi"><b style="font-size:18px">'+esc(k[1])+'</b><span>'+k[0]+'</span></div>'}).join('')+'</div><div>'+chipsMods(s.modules)+'</div>'+
@@ -262,7 +263,7 @@ function userForm(u,us){var o=OV,mx=o.sub.max_levels,allowed=o.modules.map(funct
  function homes(){var cur=f.home.value||(u&&u.home),p=picked(f,'mods');f.home.innerHTML=p.map(function(s){return '<option value="'+s+'"'+(s===cur?' selected':'')+'>'+esc(modName(s))+'</option>'}).join('')}homes();$$('input[name=mods]',f).forEach(function(i){i.onchange=homes});
  f.onsubmit=function(e){e.preventDefault();var b={name:f.name.value,level:+f.level.value,mods:picked(f,'mods'),home:f.home.value,parent_id:f.parent.value?+f.parent.value:null,readonly:f.ro.checked},er=f.querySelector('.err');if(!b.mods.length){er.textContent=ERR['no-modules'];return}
   if(u){b.active=f.active.checked;api('PATCH','/panel/users/'+u.id,b).then(function(){closeDlg();toast('ذخیره شد.');go('users')}).catch(function(x){er.textContent=emsg(x)});return}
-  b.username=f.username.value.trim();b.password=f.password.value||undefined;api('POST','/panel/users',b).then(function(x){$('#dlg').innerHTML='<div class="dl"><h2>کاربر ساخته شد</h2>'+secretBox([['کد اختصاصی',x.ucode],['نام کاربری',x.username],['رمز اولیه',x.password],['نشانی ورود',location.origin+'/admin/']])+'<button class="btn" data-close>بستن</button></div>';$('#dlg [data-close]').onclick=function(){closeDlg();go('users')}}).catch(function(x){er.textContent=emsg(x)})}})}
+  b.username=f.username.value.trim();b.password=f.password.value||undefined;api('POST','/panel/users',b).then(function(x){$('#dlg').innerHTML='<div class="dl"><h2>کاربر ساخته شد</h2>'+secretBox([['کد اختصاصی',x.ucode],['نام کاربری',x.username],['رمز اولیه',x.password],['نشانی ورود',BRAND.base+'admin/']])+'<button class="btn" data-close>بستن</button></div>';$('#dlg [data-close]').onclick=function(){closeDlg();go('users')}}).catch(function(x){er.textContent=emsg(x)})}})}
 
 /* ── پروفایل (مشترک) ── */
 function profile(){return api('GET','/me').then(function(me){S=me;var p=me.profile||{},t=me.tenant;
