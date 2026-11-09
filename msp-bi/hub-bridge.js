@@ -3,7 +3,7 @@
    که هنگام ورود از سرور پر و هنگام خروج پاک می‌شود. هر تغییر چند صدم ثانیه بعد به سرور فرستاده می‌شود. */
 (function () {
   'use strict';
-  var API = '/api/v1', SITE = 'msp-bi', VER = '1.0.0';
+  var API = '/api/v1', SITE = 'msp-bi', VER = '1.1.0';
   /* کلیدهای مشترک (داده‌ی سازمان) و کلیدهای هر کاربر (تنظیمات نمایش) */
   var SHARED_LS = ['tlPins', 'wbsCols', 'wbsSnap'];
   var USER_LS = ['dashGhost', 'dashTiles2', 'dsDisp2', 'dsTheme', 'helpOn', 'lvColors5', 'mobForce', 'pgs', 'schedCm', 'simOn', 'simSc', 'splitW', 'themePacks'];
@@ -89,15 +89,19 @@
     var id = safeId(key), rk = coll + '/' + id;
     return enc(val).then(function (ev) {
       var s = JSON.stringify(ev === undefined ? null : ev), base = REV[rk] || 0, wrap = { k: key, __v: ev };
-      if (s.length <= CHUNK) return api('PUT', '/data/' + SITE + '/' + coll + '/' + id, { data: wrap, base_rev: base, op_id: 'w' + Date.now() + Math.random().toString(36).slice(2, 7) }).then(function (r) { REV[rk] = r.rev; MINE[rk] = r.rev });
+      if (s.length <= CHUNK) return api('PUT', '/data/' + SITE + '/' + coll + '/' + id, { data: wrap, base_rev: base, op_id: 'w' + Date.now() + Math.random().toString(36).slice(2, 7) }).then(function (r) { REV[rk] = r.rev; MINE[rk] = r.rev; emit(coll, key) });
       var n = Math.ceil(s.length / CHUNK), jobs = [];
       for (var i = 0; i < n; i++) (function (i) { var cid = id + '__c' + i, crk = coll + '/' + cid; jobs.push(function () { return putRaw(coll, cid, { s: s.slice(i * CHUNK, (i + 1) * CHUNK) }, crk) }) })(i);
-      return jobs.reduce(function (p, f) { return p.then(f) }, Promise.resolve()).then(function () { return api('PUT', '/data/' + SITE + '/' + coll + '/' + id, { data: { k: key, __chunks: n }, base_rev: base }) }).then(function (r) { REV[rk] = r.rev; MINE[rk] = r.rev });
+      return jobs.reduce(function (p, f) { return p.then(f) }, Promise.resolve()).then(function () { return api('PUT', '/data/' + SITE + '/' + coll + '/' + id, { data: { k: key, __chunks: n }, base_rev: base }) }).then(function (r) { REV[rk] = r.rev; MINE[rk] = r.rev; emit(coll, key) });
     }).catch(function (e) {
       if (e.status === 409 && (tries || 0) < 3) return getDoc(coll, id).then(function (cur) { REV[rk] = cur.rev; var m = dec(merge(cur.val, val)); writeLocal(coll, key, m); return putDoc(coll, key, m, (tries || 0) + 1) });
       throw e;
     });
   }
+  /* لایه‌ی یکپارچه‌سازی: هر ذخیره یک رویداد در گذرگاه رویداد هسته ثبت می‌کند (حداکثر هر ۳۰ ثانیه یک بار برای هر کلید) */
+  var EVT_T = {};
+  function modOf(key) { return /^(letters|att:)/.test(key) ? 'mail' : (/^(files|plf:|dim)/.test(key) ? 'file-manager' : (/^msgr/.test(key) ? 'messenger' : 'project-control')) }
+  function emit(coll, key) { if (coll !== 'kv' || key.indexOf('ls:') === 0) return; var t = Date.now(); if (EVT_T[key] && t - EVT_T[key] < 30000) return; EVT_T[key] = t; api('POST', '/events', { module: modOf(key), type: 'data.updated', entity: 'store', entity_id: key }).catch(function () { }) }
   function putRaw(coll, id, data, rk, again) { return api('PUT', '/data/' + SITE + '/' + coll + '/' + id, { data: data, base_rev: REV[rk] || 0 }).then(function (r) { REV[rk] = r.rev; MINE[rk] = r.rev }).catch(function (e) { if (e.status === 409 && !again) { REV[rk] = (e.body && e.body.rev) || 0; return putRaw(coll, id, data, rk, 1) } throw e }) }
   function flush() {
     if (BUSY) return BUSY; var items = Object.keys(PEND).map(function (k) { var x = PEND[k]; delete PEND[k]; return x }); if (!items.length) { status(); return Promise.resolve() }
