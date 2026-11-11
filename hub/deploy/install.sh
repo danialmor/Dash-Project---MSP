@@ -10,7 +10,7 @@ sync_dir(){ # sync_dir SRC DST exclude...
   if command -v rsync >/dev/null 2>&1; then local a=(); for x in "$@"; do a+=(--exclude "$x"); done; rsync -a --delete "${a[@]}" "$s/" "$d/"
   else local a=(); for x in "$@"; do a+=(--exclude="./$x" --exclude="$x"); done; find "$d" -mindepth 1 -maxdepth 1 ! -name data ! -name vendor -exec rm -rf {} +; (cd "$s" && tar cf - "${a[@]}" .) | (cd "$d" && tar xf -); fi; }
 SITE="${1:?دامنه یا IP سرور را بدهید}"; shift || true
-ZIP=""; REPO="${DANIMOR_REPO:-https://github.com/danialmor/Dash-Project---MSP.git}"; BRANCH="${DANIMOR_BRANCH:-main}"
+ZIP=""; REPO="${DANIMOR_REPO:-https://github.com/danialmor/TSUBA.git}"; BRANCH="${DANIMOR_BRANCH:-main}"
 while [ $# -gt 0 ]; do case "$1" in --zip) ZIP="$2"; shift 2;; --repo) REPO="$2"; shift 2;; *) shift;; esac; done
 ROOT="${DANIMOR_ROOT:-}"            # فقط برای آزمون: همه‌ی مسیرها زیر این پوشه
 DRY="${DANIMOR_DRY:-0}"             # 1 = بدون apt و systemctl (آزمون)
