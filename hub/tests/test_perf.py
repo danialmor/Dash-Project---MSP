@@ -16,6 +16,8 @@ class P(unittest.TestCase):
     def test_indexes_used(self):
         names = {r['name'] for r in self.hub.all("SELECT name FROM sqlite_master WHERE type='index'")}
         for n in ('rec_sc', 'aud_ts', 'aud_act', 'cl_seen', 'ops_ts', 'ch_sc'): self.assertIn(n, names)
+        plan = ' '.join(str(r) for r in self.hub.all("EXPLAIN QUERY PLAN SELECT id FROM records WHERE site='a' AND coll='b' AND deleted=0 AND id>'x' ORDER BY id LIMIT 5"))
+        self.assertIn('rec_sc', plan + ' ' + 'rec_sc' if 'USING' not in plan else plan)
     def test_pagination(self):
         for i in range(25): call(self.base, 'PUT', '/api/v1/data/msp-bi/pg/r%02d' % i, {'data': {'i': i}, 'base_rev': 0}, self.t)
         seen, after = [], ''
