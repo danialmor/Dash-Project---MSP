@@ -8,7 +8,7 @@ Each entry: date · decision · reason. Do not reverse without the owner's appro
 - **2026-11** · Offline writes are not supported in hub mode for the dashboard (saves show an error and retry); the SDK supports an outbox for other sites. · Simplicity; data must reach the server.
 - **2026-11** · Conflict policy: merge arrays by `id`, the saving user wins for the same item; never silently drop changes. · Multi-user editing of shared documents.
 - **2026-11** · Test mode with `Admin` / `Admin123` for every environment until real data. · Owner request; must be switched off before production.
-- **2026-11** · GitHub repo `danialmor/Dash-Project---MSP` is the source of truth; the server pulls `main` every 10 minutes. · Owner wants automatic updates without manual uploads.
+- **2026-11** · GitHub repo `danialmor/TSUBA` (formerly `Dash-Project---MSP`) is the source of truth; the server pulls `main` every 10 minutes. · Owner wants automatic updates without manual uploads.
 - **2026-11** · No GitHub Actions dependency. · The AI connector cannot write workflow files.
 - **2026-11** · Dashboard keeps a "local mode" for preview (claude.ai artifact, GitHub Pages). · Design reviews happen in the preview.
 - **2026-11** · Landing page is `noindex`; shows the 12 ecosystem modules; only live modules link to their sites. · Private business system.
@@ -21,3 +21,9 @@ Each entry: date · decision · reason. Do not reverse without the owner's appro
 - **2026-11** · Up to **10 levels** per subscription (the ecosystem admin sets the maximum per subscription; the subscription admin names them; level 1 is the highest). · Owner requirement.
 - **2026-11** · Every user gets a personal code `<tenant>-<NNNN>` that shows which subscription they belong to; usable as login name. · Owner requirement.
 - **2026-11** · Usernames are unique across the whole ecosystem. · One login page for everyone.
+- **2026-11** · Brand is **TSUBA** (鍔 the guard · 刀 KATANA the sword · 家紋 KAMON the crest). · Owner decision.
+- **2026-11** · **One brand root** `shared/brand.js` holds the name, logo, taglines and the 12 platforms; pages only reference it (`data-brand=…`, `BRAND.label()`). · Owner wants to change the brand once and have every page follow.
+- **2026-11** · Every platform is shown as its Roman numeral + em dash + its function (`IV — کنترل پنل کاربران`) with the description in smaller text below. · Owner requirement.
+- **2026-11** · Control panel keeps its own blue design (Tabler redesign rejected by the owner). · Owner preference.
+- **2026-11** · Logo stored as a text SVG wrapping a WebP (`assets/tsuba-emblem.svg`). · The AI connector can only commit text files.
+- **2026-11** · GitHub Pages runs a browser-only demo hub for the panel (`shared/demo.js`). · Owner wants to see results on GitHub before having a server.

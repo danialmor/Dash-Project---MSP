@@ -4,7 +4,7 @@ This file is the entry point for any AI assistant or developer opening this repo
 Read it fully, then read the documents it links. **Do not start from scratch**: most of the system exists and is tested.
 
 ## What this project is
-**Danimor** is a private business ecosystem for a construction / interior-design company in Isfahan, Iran
+**TSUBA** (formerly Danimor; repo `danialmor/TSUBA`) is a private business ecosystem for a construction / interior-design company in Isfahan, Iran
 (owner: Danial, architect and construction project manager; ~10 active projects, 30–40 users).
 One domain hosts several sites ("modules") that share **one login, one database, one permission system and one integration layer**.
 
@@ -21,7 +21,10 @@ One domain hosts several sites ("modules") that share **one login, one database,
 ## Repository map
 | Path | What it is |
 |---|---|
-| `index.html` | Ecosystem landing page: neon hub with the Danimor logo and the 12 modules (no external deps, noindex). |
+| `index.html` | Ecosystem landing page: TSUBA emblem with the 12 platforms around it (noindex). |
+| `shared/brand.js` | **Brand root**: name, logo, taglines and the 12 platforms (numeral, name, description, colour, icon, link). Change the brand only here. |
+| `shared/demo.js` | In-browser demo hub used only on GitHub Pages (`*.github.io`) so the panel can be tried without a server. |
+| `assets/tsuba-emblem.svg` | The logo (text SVG wrapping a WebP). |
 | `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.44.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
 | `admin/` | **User Control Panel** + unified login: ecosystem-admin console (subscriptions, requests, modules, staff, system) and subscription-admin panel (users, 10 levels, profile). |
 | `aide/` | Connection/test page for the CEO & Secretary desk. The real Aide app lives in repo `danialmor/aide`. |
@@ -57,7 +60,8 @@ node hub/tests/e2e_panel.js         # control panel: admin creates subscription,
 4. This repository is **public**: never commit real company data, real user lists, tokens or keys.
 5. UI text in Persian, RTL, with correct ZWNJ (half-space). Code, comments and docs in English (some legacy Persian comments exist).
 6. Ask the owner before changing anything listed in `docs/DECISIONS.md`.
-7. Subscription users must never see the control panel; only the ecosystem admin and subscription admins (`owner`) do. Keep data isolation per subscription (`Hub.ss`).
+7. Never hard-code the brand name, logo or platform names in a page: read them from `shared/brand.js` (`data-brand="name|logo|tagline-en|tagline-fa|motto|favicon"`, `BRAND.label(slug,'fa')`, `BRAND.desc(slug,'fa')`). Show platforms as `<numeral> — <function>` with the description smaller below.
+8. Subscription users must never see the control panel; only the ecosystem admin and subscription admins (`owner`) do. Keep data isolation per subscription (`Hub.ss`).
 
 ## Where to start
 See **"Next steps"** in `docs/STATUS.md`. The top item is always the current priority.
