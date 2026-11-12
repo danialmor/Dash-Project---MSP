@@ -61,7 +61,8 @@ node hub/tests/e2e_panel.js         # control panel: admin creates subscription,
 5. UI text in Persian, RTL, with correct ZWNJ (half-space). Code, comments and docs in English (some legacy Persian comments exist).
 6. Ask the owner before changing anything listed in `docs/DECISIONS.md`.
 7. Never hard-code the brand name, logo or platform names in a page: read them from `shared/brand.js` (`data-brand="name|logo|tagline-en|tagline-fa|motto|favicon"`, `BRAND.label(slug,'fa')`, `BRAND.desc(slug,'fa')`). Show platforms as `<numeral> — <function>` with the description smaller below.
-8. Subscription users must never see the control panel; only the ecosystem admin and subscription admins (`owner`) do. Keep data isolation per subscription (`Hub.ss`).
+8. Dashboard visuals follow `docs/THEME-RULES.md`: frames, cards and scrollbars take colour and shape only from the theme tokens; long content scrolls inside fixed frames like the dashboard; check layouts with the 15-project simulation.
+9. Subscription users must never see the control panel; only the ecosystem admin and subscription admins (`owner`) do. Keep data isolation per subscription (`Hub.ss`).
 
 ## Where to start
 See **"Next steps"** in `docs/STATUS.md`. The top item is always the current priority.
