@@ -24,6 +24,6 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
  await p.click('#lo'); await sleep(300);
  await login('site_eng'); await p.waitForURL(/msp-bi/, { timeout: 10000 }); await p.waitForSelector('#hbS', { timeout: 20000 }); R.userLanded = p.url(); R.noSecondLogin = !(await p.$('#hbL input[name=code]'));
 
-  assert.ok(R.bad.length > 0); assert.strictEqual(R.adminNav.length, 7); assert.ok(R.created.includes('T001-0001')); assert.strictEqual(R.rows, 1); assert.strictEqual(R.ownerNav.length, 4); assert.strictEqual(R.levelInputs, 4);
+  assert.ok(R.bad.length > 0); assert.strictEqual(R.adminNav.length, 10); assert.ok(R.created.includes('T001-0001')); assert.strictEqual(R.rows, 1); assert.strictEqual(R.ownerNav.length, 8); assert.strictEqual(R.levelInputs, 4);
   assert.ok(R.userCreated.includes('T001-0002')); assert.ok(R.userRow.includes('site_eng')); assert.ok(/\/msp-bi\/$/.test(R.userLanded)); assert.ok(R.noSecondLogin); assert.deepStrictEqual(errs, []); console.log('PANEL-E2E-OK');
  } catch (e) { console.log('FAIL', e.message, JSON.stringify(R)); process.exitCode = 1 } await b.close(); hub.kill(); fs.rmSync(DIR, { recursive: true, force: true }) })();

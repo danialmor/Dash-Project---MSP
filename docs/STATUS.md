@@ -1,4 +1,4 @@
-# Status (last updated: 2026-11-13)
+# Status (last updated: 2026-11-14)
 
 ## Done and tested
 | Area | State | Notes |
@@ -13,11 +13,12 @@
 | GitHub Pages demo (`shared/demo.js`) | ✅ | On `*.github.io` (or `?demo=1`) the control panel runs against an in-browser simulated hub so it can be tried without a server: `Admin`, `owner`, `T001-0002`, all `Admin123`. Never active on a real server. |
 | Subscriptions / multi-tenancy | ✅ | Tenants, subscription history, seats, up to 10 named levels, personal user codes, per-tenant data isolation, suspension/expiry, signup requests (`test_tenants.py`). |
 | User Control Panel (`admin/index.html`) | ✅ | Blue design, TSUBA brand from the root. Unified login; ecosystem-admin console (overview, subscriptions, requests, modules, head-office staff, system, profile); subscription-admin panel (overview, users, levels, profile); users are redirected to their module (`e2e_panel.js`). |
+| Panel 1.1 (`admin/extras.js`) | ✅ | Light violet / dark lime themes with a toggle; "needs your decision" card and notification bell; quick search (⌘K); permissions matrix (level × module: view / edit / approve); bulk user import from CSV; activity pages; account security (password strength, sign out everywhere, sign-in history); sales and payments for the ecosystem admin (price list, manual payments, printable invoice, renewal reminders) and "my subscription" with an upgrade request for owners. Hub endpoints: `POST /auth/logout-all`, `GET /me/activity`, `GET /panel/activity`. Plans and payments are stored in site `admin`, collections `plans` and `payments`. |
 | Deployment | ✅ (dry-run only) | `install.sh` verified in a dry run; **never run on a real server yet**. |
 
 ## Not done / known limitations
 1. **Not deployed.** The owner has no VPS yet. The repository was renamed to **`danialmor/TSUBA`**; GitHub Pages (`danialmor.github.io/TSUBA/`) shows the landing page, the control panel in demo mode and the dashboard in local mode.
-2. **`msp-bi/index.html` is ~770 KB**, too large for the AI's GitHub connector. The owner uploads it manually (v3.51.0 is ready in the owner's downloads; the copy on GitHub may be older until the owner uploads it); everything else is committed directly. Planned fix: split into modules (see next steps). The dashboard's own title/manifest still say "داشبورد پروژه‌ها"; only its login screen (in `hub-bridge.js`) reads the brand root.
+2. **`msp-bi/index.html` is ~800 KB**, too large for the AI's GitHub connector. The owner uploads it manually (v3.51.0 is on GitHub since 2026-11-14). Sessions whose repository access includes push (`git push`) can commit it directly; the file connector cannot. Planned fix: split into modules (see next steps). The dashboard's own title/manifest still say "داشبورد پروژه‌ها"; only its login screen (in `hub-bridge.js`) reads the brand root.
 3. Some dashboard parts still render **built-in sample data** regardless of the server: the WBS tree (`RAW`), legacy delay list (`DL`), project list fallback (`PJ`). They must be moved to server data.
 4. Delay responses: anyone can respond during design phase (`DLR_ENFORCE=false`). Target: only CEO and deputies (open question: should the project manager keep this right?).
 5. The mobile supervisor delay form still uses the old short form (not the full Microsoft-Form fields).

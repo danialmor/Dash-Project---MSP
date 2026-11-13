@@ -25,7 +25,7 @@ One domain hosts several sites ("modules") that share **one login, one database,
 | `shared/brand.js` | **Brand root**: name, logo, taglines and the 12 platforms (numeral, name, description, colour, icon, link). Change the brand only here. |
 | `shared/demo.js` | In-browser demo hub used only on GitHub Pages (`*.github.io`) so the panel can be tried without a server. |
 | `assets/tsuba-emblem.svg` | The logo (text SVG wrapping a WebP). |
-| `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.44.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
+| `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.51.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
 | `admin/` | **User Control Panel** + unified login: ecosystem-admin console (subscriptions, requests, modules, staff, system) and subscription-admin panel (users, 10 levels, profile). |
 | `aide/` | Connection/test page for the CEO & Secretary desk. The real Aide app lives in repo `danialmor/aide`. |
 | `shared/sdk.js` | Browser SDK for the hub (login, offline outbox, conflicts, paging, AI streaming). |
