@@ -27,6 +27,7 @@ One domain hosts several sites ("modules") that share **one login, one database,
 | `assets/tsuba-emblem.svg` | The logo (text SVG wrapping a WebP). |
 | `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.51.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
 | `admin/` | **User Control Panel** + unified login: ecosystem-admin console (subscriptions, requests, modules, staff, system) and subscription-admin panel (users, 10 levels, profile). |
+| `admin/extras.js`, `admin/sitemap.js`, `admin/lib/` | Panel extensions (permissions, notifications, search, import, security, sales) and the ecosystem site map (Drawflow, MIT). They reach the panel through `window.TSP`. |
 | `aide/` | Connection/test page for the CEO & Secretary desk. The real Aide app lives in repo `danialmor/aide`. |
 | `shared/sdk.js` | Browser SDK for the hub (login, offline outbox, conflicts, paging, AI streaming). |
 | `hub/server.py` | **The core backend** (Python 3 standard library only, SQLite). |
