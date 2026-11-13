@@ -75,4 +75,24 @@ class Tenants(unittest.TestCase):
         self.assertEqual(call(self.base, 'POST', '/api/v1/signup', {'name': ''})[0], 400)
         it = call(self.base, 'GET', '/api/v1/admin/signups', token=self.ta)[1]['items']; self.assertEqual(it[0]['name'], 'Ali')
         self.assertEqual(call(self.base, 'PATCH', '/api/v1/admin/signups/%d' % it[0]['id'], {'status': 'contacted'}, self.ta)[0], 200)
+    def test_9_activity_and_logout_all(self):
+        tok = self.login('Admin')['token']
+        st, r = call(self.base, 'GET', '/api/v1/me/activity', token=tok); self.assertEqual(st, 200); self.assertTrue(any(i['action'] == 'login' for i in r['items']))
+        self.mk('Act Co', 'act_admin'); to = self.login('act_admin')['token']
+        st, r = call(self.base, 'GET', '/api/v1/panel/activity', token=to); self.assertEqual(st, 200); self.assertTrue(all(i['user'] == 'act_admin' for i in r['items']) and r['items'])
+        self.assertEqual(call(self.base, 'POST', '/api/v1/auth/logout-all', {}, tok)[0], 200)
+        self.assertEqual(call(self.base, 'GET', '/api/v1/me', token=tok)[0], 401)
+        self.__class__.ta = self.login('Admin')['token']
+    def test_4_perms(self):
+        self.mk('Perm Co', 'perm_admin', mods=('project-control', 'mail'), seats=6, lv=3); to = self.login('perm_admin')['token']
+        g = call(self.base, 'GET', '/api/v1/panel/perms', token=to)[1]; self.assertEqual(g['max_levels'], 3)
+        self.assertEqual(g['perms']['project-control'], {'view': 3, 'edit': 3, 'approve': 1})  # defaults: everyone sees and edits, only level 1 approves
+        for i, lv in ((1, 1), (2, 2), (3, 3)): call(self.base, 'POST', '/api/v1/panel/users', {'name': 'p%d' % i, 'username': 'perm_p%d' % i, 'level': lv, 'mods': ['project-control', 'mail']}, to)
+        r = call(self.base, 'PUT', '/api/v1/panel/perms', {'perms': {'project-control': {'view': 3, 'edit': 2, 'approve': 2}, 'mail': {'view': 2, 'edit': 9, 'approve': 1}, 'crm': {'view': 1}}}, to)[1]
+        self.assertEqual(r['perms']['project-control'], {'view': 3, 'edit': 2, 'approve': 2}); self.assertEqual(r['perms']['mail'], {'view': 2, 'edit': 2, 'approve': 1}); self.assertNotIn('crm', r['perms'])
+        p1, p2, p3 = (self.login('perm_p%d' % i)['perms'] for i in (1, 2, 3))
+        self.assertEqual(p1['mail'], {'view': True, 'edit': True, 'approve': True}); self.assertTrue(p2['project-control']['approve']); self.assertFalse(p2['mail']['approve'])
+        self.assertEqual(p3['project-control'], {'view': True, 'edit': False, 'approve': False}); self.assertFalse(p3['mail']['view'])
+        self.assertTrue(all(all(v.values()) for v in self.login('perm_admin')['perms'].values()))  # the subscription admin has every right
+        self.assertIsNone(self.login('Admin')['perms']); self.assertEqual(call(self.base, 'GET', '/api/v1/panel/perms', token=self.login('perm_p1')['token'])[0], 403)
 if __name__ == '__main__': unittest.main()
