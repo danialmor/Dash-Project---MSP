@@ -97,7 +97,7 @@ class Hub:
         CREATE INDEX IF NOT EXISTS sub_t ON subscriptions(tenant_id, id);
         CREATE TABLE IF NOT EXISTS signups(id INTEGER PRIMARY KEY, ts REAL, name TEXT, company TEXT, phone TEXT, email TEXT, note TEXT, status TEXT DEFAULT 'new', ip TEXT);''')
         for t, col, ddl in (('users', 'tenant_id', 'INTEGER'), ('users', 'level', 'INTEGER DEFAULT 0'), ('users', 'parent_id', 'INTEGER'), ('users', 'ucode', 'TEXT'),
-                            ('users', 'home', "TEXT DEFAULT ''"), ('users', 'mods', "TEXT DEFAULT '[]'"), ('users', 'profile', "TEXT DEFAULT '{}'"), ('events', 'tenant', "TEXT DEFAULT ''")):
+                            ('users', 'home', "TEXT DEFAULT ''"), ('users', 'mods', "TEXT DEFAULT '[]'"), ('users', 'profile', "TEXT DEFAULT '{}'"), ('events', 'tenant', "TEXT DEFAULT ''"), ('tenants', 'perms', "TEXT DEFAULT '{}'")):
             try: self.db.execute('ALTER TABLE %s ADD COLUMN %s %s' % (t, col, ddl))
             except sqlite3.OperationalError: pass
         self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS u_ucode ON users(ucode)'); self.db.execute('CREATE INDEX IF NOT EXISTS u_ten ON users(tenant_id)')
@@ -158,6 +158,23 @@ class Hub:
         allowed = json.loads(s['modules'] or '[]')
         if u['role'] == 'owner': return allowed
         mine = json.loads(u.get('mods') or '[]'); return [m for m in allowed if m in mine]
+    RIGHTS = ('view', 'edit', 'approve')
+    def tperms(self, tid, mx, allowed):  # per module: the lowest level (largest number) that still has each right; 1 = only the top level
+        pr = self.one('SELECT perms FROM tenants WHERE id=?', (tid,)); raw = json.loads((pr['perms'] if pr else None) or '{}')
+        out = {}
+        for slug in allowed:
+            r = raw.get(slug) or {}; d = {'view': mx, 'edit': mx, 'approve': 1}
+            out[slug] = {k: max(1, min(int(r.get(k, d[k]) or d[k]), mx)) for k in self.RIGHTS}
+            if out[slug]['edit'] > out[slug]['view']: out[slug]['edit'] = out[slug]['view']
+            if out[slug]['approve'] > out[slug]['edit']: out[slug]['approve'] = out[slug]['edit']
+        return out
+    def uperms(self, u):  # rights of one user: {module: {view, edit, approve}}; None = head office (grants decide)
+        if not u.get('tenant_id'): return None
+        s = self.sub(u['tenant_id']) or {}; mods = self.umods(u) or []
+        if u['role'] == 'owner': return {m: {k: True for k in self.RIGHTS} for m in mods}
+        P = self.tperms(u['tenant_id'], int(s.get('max_levels') or 1), json.loads(s.get('modules') or '[]')); lv = int(u.get('level') or 99)
+        ro = u['role'] == 'viewer'
+        return {m: {'view': lv <= P[m]['view'], 'edit': (not ro) and lv <= P[m]['edit'], 'approve': (not ro) and lv <= P[m]['approve']} for m in mods if m in P}
     def home(self, u):
         if u['role'] in ('admin', 'owner'): return '/admin/'
         mods = self.umods(u)
@@ -174,7 +191,7 @@ class Hub:
             t = {'code': tr['code'], 'name': tr['name'], 'status': tr['status'], 'levels': json.loads(tr['levels'] or '[]'), 'active': self.sub_ok(u['tenant_id']),
                  'ends': s['ends'] if s else None, 'plan': s['plan'] if s else ''}
         return {'user': self.pub(u), 'grants': self.grants(u), 'must_change': self.mc(u), 'tenant': t, 'ucode': u.get('ucode') or '', 'level': u.get('level') or 0,
-                'modules': self.umods(u), 'home': self.home(u), 'panel': u['role'] in ('admin', 'owner'), 'profile': json.loads(u.get('profile') or '{}')}
+                'modules': self.umods(u), 'perms': self.uperms(u), 'home': self.home(u), 'panel': u['role'] in ('admin', 'owner'), 'profile': json.loads(u.get('profile') or '{}')}
 
     def grants(self, u):
         if u.get('tenant_id'):
@@ -427,6 +444,11 @@ class H(BaseHTTPRequestHandler):
         if not u: return self.send(401, {'error': 'unauthorized'})
         self.touch(u)
         if hub.mc(u) and seg not in (['me'], ['auth', 'change-pin']): return self.send(403, {'error': 'must-change-pin'})
+        if seg == ['auth', 'logout-all'] and m == 'POST':  # sign out every device of this user (token version bump)
+            hub.q('UPDATE users SET tv=tv+1 WHERE id=?', (u['id'],)); hub.log(u['code'], 'logout-all', '', '', self.ip()); return self.send(200, {'ok': True})
+        if seg == ['me', 'activity'] and m == 'GET':  # own sign-ins and actions
+            rows = hub.all('SELECT ts,action,target,ip FROM audit WHERE user=? COLLATE NOCASE ORDER BY id DESC LIMIT 60', (u['code'],))
+            return self.send(200, {'items': rows})
         if seg == ['auth', 'change-pin'] and m == 'POST':
             b = self.body(); old = str(b.get('old', '')); new = str(b.get('new', ''))
             if len(new) < 8 or new.lower() in WEAK or new.lower() == u['code'].lower() or new == old: return self.send(400, {'error': 'weak-pin'})
@@ -526,6 +548,19 @@ class H(BaseHTTPRequestHandler):
         if seg == ['levels'] and m == 'PUT':
             names = [str(x)[:40] for x in (self.body().get('names') or [])][:mx]
             hub.q('UPDATE tenants SET levels=? WHERE id=?', (json.dumps(names, ensure_ascii=False), tid)); return self.send(200, {'ok': True, 'levels': names})
+        if seg == ['perms'] and m == 'GET':
+            mods = [dict(r) for r in hub.all('SELECT slug,name_fa,name_en FROM modules ORDER BY ord') if r['slug'] in allowed]
+            return self.send(200, {'max_levels': mx, 'levels': json.loads(t['levels'] or '[]'), 'modules': mods, 'perms': hub.tperms(tid, mx, allowed)})
+        if seg == ['perms'] and m == 'PUT':
+            b = self.body().get('perms') or {}; cur = json.loads(t['perms'] or '{}') if 'perms' in t.keys() else {}
+            for slug, r in b.items():
+                if slug in allowed and isinstance(r, dict): cur[slug] = {k: max(1, min(int(r.get(k) or 1), mx)) for k in hub.RIGHTS}
+            hub.q('UPDATE tenants SET perms=? WHERE id=?', (json.dumps(cur), tid)); hub.log(own['code'], 'panel.perms', t['code'], '', self.ip())
+            return self.send(200, {'ok': True, 'perms': hub.tperms(tid, mx, allowed)})
+        if seg == ['activity'] and m == 'GET':  # sign-ins and actions of this subscription's users
+            codes = [r['code'] for r in hub.all('SELECT code FROM users WHERE tenant_id=?', (tid,))]
+            rows = hub.all('SELECT a.ts,a.user,a.action,a.target FROM audit a WHERE a.user IN (%s) ORDER BY a.id DESC LIMIT 150' % ','.join('?' * len(codes)), tuple(codes)) if codes else []
+            return self.send(200, {'items': rows})
         if seg == ['users'] and m == 'GET':
             us = hub.all('SELECT id,code,name,role,level,parent_id,ucode,active,last_login,mods,home,profile FROM users WHERE tenant_id=? ORDER BY level,id', (tid,))
             for x in us: x['mods'] = json.loads(x['mods'] or '[]'); x['profile'] = json.loads(x['profile'] or '{}')
