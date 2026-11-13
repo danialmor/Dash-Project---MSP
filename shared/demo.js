@@ -61,6 +61,17 @@
     if (p === '/me') return sess(U);
     if (p === '/me/profile') { if (b.name) U.name = b.name; U.profile = { title: b.title || '', phone: b.phone || '', email: b.email || '' }; return sess(U) }
     if (p === '/auth/change-pin') { if (b.old !== U.pin) E(401, 'bad-credentials'); if (String(b.new || '').length < 8 || b.new === b.old) E(400, 'weak-pin'); U.pin = b.new; U.must_change = false; return { token: 'demo-' + U.id } }
+    // ── 1.1: دستگاه‌ها، فعالیت، داده‌ی عمومی، دسترسی‌ها
+    if (p === '/auth/logout-all') { log(U, 'logout-all'); return { ok: true } }
+    if (p === '/me/activity') return { items: D.audit.filter(function (a) { return a.user === U.code }).slice(0, 60) };
+    var dm = /^\/data\/([\w-]+)\/([\w-]+)(?:\/([\w.~:-]+))?$/.exec(p.split('?')[0]);
+    if (dm) {
+      D.data = D.data || {}; var key = dm[1] + (U.tenant_id ? '~T' + U.tenant_id : '') + '/' + dm[2], C = D.data[key] = D.data[key] || {};
+      if (m === 'GET' && !dm[3]) return { items: Object.keys(C).map(function (k) { return { id: k, data: C[k].data, rev: C[k].rev } }) };
+      if (m === 'GET') { if (!C[dm[3]]) E(404, 'not-found'); return { id: dm[3], data: C[dm[3]].data, rev: C[dm[3]].rev } }
+      if (m === 'PUT') { var rv = (C[dm[3]] ? C[dm[3]].rev : 0) + 1; C[dm[3]] = { data: b.data, rev: rv }; return { id: dm[3], rev: rv } }
+      if (m === 'DELETE') { delete C[dm[3]]; return { ok: true } }
+    }
     if (p.indexOf('/admin/') === 0) {
       if (!(U.role === 'admin' && !U.tenant_id)) E(403, 'forbidden');
       if (p === '/admin/tenants' && m === 'GET') return { tenants: D.tenants.map(tenantRow) };
@@ -93,6 +104,13 @@
       var inT = function (u) { return u.tenant_id === t2.id };
       if (p === '/panel/overview') return { tenant: { name: t2.name, code: t2.code, levels: t2.levels }, sub: s2, used: D.users.filter(function (u) { return inT(u) && u.active }).length, active: active(t2), modules: D.modules.filter(function (md) { return s2.modules.indexOf(md.slug) >= 0 }) };
       if (p === '/panel/users' && m === 'GET') return { users: D.users.filter(inT).map(pub) };
+      if (p === '/panel/activity') { var cs = D.users.filter(inT).map(function (u) { return u.code }); return { items: D.audit.filter(function (a) { return cs.indexOf(a.user) >= 0 }).slice(0, 150) } }
+      if (p === '/panel/perms') {
+        var mx = s2.max_levels || 1, mods = D.modules.filter(function (md) { return s2.modules.indexOf(md.slug) >= 0 }); t2.perms = t2.perms || {};
+        if (m === 'PUT') Object.keys(b.perms || {}).forEach(function (k) { if (s2.modules.indexOf(k) >= 0) { var r = b.perms[k], c = function (v, dv) { return Math.max(1, Math.min(+v || dv, mx)) }; t2.perms[k] = { view: c(r.view, mx), edit: c(r.edit, mx), approve: c(r.approve, 1) }; if (t2.perms[k].edit > t2.perms[k].view) t2.perms[k].edit = t2.perms[k].view } });
+        var out = {}; s2.modules.forEach(function (k) { out[k] = t2.perms[k] || { view: mx, edit: mx, approve: 1 } });
+        return { max_levels: mx, levels: t2.levels || [], modules: mods.map(function (md) { return { slug: md.slug, name_fa: md.name_fa, name_en: md.name_en } }), perms: out };
+      }
       if (p === '/panel/levels') { t2.levels = (b.names || []).slice(0, s2.max_levels); return { ok: true } }
       var chk = function () { if (!b.mods || !b.mods.length) E(400, 'no-modules'); if (b.level < 1 || b.level > s2.max_levels) E(400, 'level-out-of-range'); b.mods = b.mods.filter(function (s) { return s2.modules.indexOf(s) >= 0 }) };
       if (p === '/panel/users' && m === 'POST') {
@@ -122,6 +140,7 @@
   function bar() {
     if (document.getElementById('demoBar')) return; var d = document.createElement('div'); d.id = 'demoBar'; d.setAttribute('role', 'note');
     d.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:100000;background:#f2b640;color:#1a1408;font:600 12px Vazirmatn,Tahoma,sans-serif;direction:rtl;border-radius:99px;padding:5px 8px 5px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+    try{document.documentElement.classList.add('tsuba-demo')}catch(e){}
     d.innerHTML = '<span>حالت نمایشی گیت‌هاب: داده‌ها فقط در همین مرورگر</span><button type="button" style="border:0;border-radius:99px;background:#1a1408;color:#fff;font:inherit;padding:3px 10px;cursor:pointer">شروع دوباره</button>';
     d.querySelector('button').onclick = function () { if (!confirm('داده‌های نمایشی پاک و از نو ساخته شوند؟')) return; try { localStorage.removeItem(KEY); localStorage.removeItem('hub.token') } catch (e) { } location.reload() };
     document.body.appendChild(d);
