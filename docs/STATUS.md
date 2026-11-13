@@ -1,4 +1,4 @@
-# Status (last updated: 2026-11-11)
+# Status (last updated: 2026-11-13)
 
 ## Done and tested
 | Area | State | Notes |
@@ -6,7 +6,7 @@
 | Hub core (`hub/server.py`) | ✅ | Identity, permissions, versioned records, sync, change feed, admin, backups, AI gateway, ETag, paging. |
 | Ecosystem core | ✅ | Module registry (12 modules), event bus, cross-module relations (`test_core.py`). |
 | Dashboard ↔ hub (`msp-bi/hub-bridge.js`) | ✅ | Login, server-only persistence, merge on conflict, binary files, chunking, colleague notice, logout wipe (`e2e_bridge.js`). |
-| Project Control dashboard (`msp-bi/index.html`, v3.44.0) | ✅ | Home, dashboard (EVM tiles), project control (Gantt, WBS tree with gear menu, timeline with pinned/auto/changed rows, delays), projects page (portfolio + 13 detail tabs), letters with approval routes, messenger, planning, files, mobile role views, simulation center. |
+| Project Control dashboard (`msp-bi/index.html`, v3.51.0) | ✅ | 3.45–3.51: 15-project simulation on every page, theme contract (`docs/THEME-RULES.md`), efficiency and info tabs moved into the dashboard, new projects list, compact project page and headers, fixed "needs action" list. Home, dashboard (EVM tiles), project control (Gantt, WBS tree with gear menu, timeline with pinned/auto/changed rows, delays), projects page (portfolio + 13 detail tabs), letters with approval routes, messenger, planning, files, mobile role views, simulation center. |
 | Delay reporting | ✅ | In-app form identical to the owner's Microsoft Form; requests-and-response view; Excel import of the Forms export (deduplicated). |
 | Brand root (`shared/brand.js`) | ✅ | **TSUBA** name, logo (`assets/tsuba-emblem.svg`), taglines and the 12 platforms (Roman numeral, name, short description, colour, icon, link). Every page reads it; change the brand in this one file. Platforms are always shown as `I — Project Control` with the description in smaller text below. |
 | Landing page (`index.html`) | ✅ | TSUBA ring of 12 platforms around the emblem, list of platforms, Sign in → `admin/`. All names/links come from the brand root. |
@@ -17,7 +17,7 @@
 
 ## Not done / known limitations
 1. **Not deployed.** The owner has no VPS yet. The repository was renamed to **`danialmor/TSUBA`**; GitHub Pages (`danialmor.github.io/TSUBA/`) shows the landing page, the control panel in demo mode and the dashboard in local mode.
-2. **`msp-bi/index.html` is ~770 KB**, too large for the AI's GitHub connector. The owner uploads it manually (the copy on GitHub may be older than v3.44.0); everything else is committed directly. Planned fix: split into modules (see next steps). The dashboard's own title/manifest still say "داشبورد پروژه‌ها"; only its login screen (in `hub-bridge.js`) reads the brand root.
+2. **`msp-bi/index.html` is ~770 KB**, too large for the AI's GitHub connector. The owner uploads it manually (v3.51.0 is ready in the owner's downloads; the copy on GitHub may be older until the owner uploads it); everything else is committed directly. Planned fix: split into modules (see next steps). The dashboard's own title/manifest still say "داشبورد پروژه‌ها"; only its login screen (in `hub-bridge.js`) reads the brand root.
 3. Some dashboard parts still render **built-in sample data** regardless of the server: the WBS tree (`RAW`), legacy delay list (`DL`), project list fallback (`PJ`). They must be moved to server data.
 4. Delay responses: anyone can respond during design phase (`DLR_ENFORCE=false`). Target: only CEO and deputies (open question: should the project manager keep this right?).
 5. The mobile supervisor delay form still uses the old short form (not the full Microsoft-Form fields).
@@ -27,8 +27,7 @@
 9. When a module is used by a subscription user, the dashboard still shows its built-in sample data (see 3).
 10. Tabler (MIT) is still downloaded by `install.sh` into `/vendor/tabler/` but the panel no longer uses it (owner preferred the blue design). Can be removed.
 11. `msp-bi/index 2.html` on GitHub is a stray copy uploaded by hand; delete when convenient.
-12. `hub/tests/ui_*.js` test the old (pre-subscription) panel and are obsolete; the current UI tests are `e2e_panel.js` and `e2e_bridge.js`.
-13. `.github/workflows/*` cannot be written by the AI connector (missing workflow permission); deployment does not depend on GitHub Actions.
+12. `.github/workflows/*` cannot be written by the AI connector (missing workflow permission); deployment does not depend on GitHub Actions.
 
 ## Next steps (priority order — continue from the top)
 1. **Owner action:** buy a VPS (Ubuntu 24.04, root), run `install.sh`, create users, turn off `test_mode`.
