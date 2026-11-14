@@ -4,140 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#050a1f">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#111110">
 <title>{brand} · IV — کنترل پنل کاربران</title>
 <link rel="icon" data-brand="favicon" href="data:,">
 <script src="../shared/brand.js"></script>
 <script src="../shared/demo.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Vazirmatn:wght@400;500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<style>
-:root{--bg:#050a1f;--bg2:#0b1638;--card:rgba(16,30,72,.72);--card2:rgba(24,42,96,.55);--ink:#eaf1ff;--muted:#8ea3c7;--line:rgba(126,160,255,.18);--line2:rgba(126,160,255,.32);
- --blue:#2f7bff;--cyan:#22d3ee;--ok:#3ddc97;--warn:#f2b640;--bad:#fb7185;--violet:#8b5cf6;--r:14px;
- box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-*,*::before,*::after{box-sizing:inherit}
-html{background:var(--bg);color:var(--ink);scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;min-height:100vh;font:14px/1.6 Vazirmatn,Tahoma,"Segoe UI",sans-serif;background:radial-gradient(60vmax 45vmax at 70% -10%,rgba(47,123,255,.25),transparent 60%),radial-gradient(40vmax 30vmax at 0% 100%,rgba(124,58,237,.2),transparent 70%),var(--bg)}
-a{color:var(--cyan)}button,input,select,textarea{font:inherit;color:inherit}
-[hidden]{display:none!important}
-.mono{font-family:ui-monospace,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate}
-input,select,textarea{width:100%;min-height:42px;border-radius:11px;border:1px solid var(--line2);background:rgba(5,12,40,.6);padding:8px 12px;font-size:15px}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--cyan);outline-offset:1px;border-color:transparent}
-input[type=checkbox]{width:18px;min-height:18px;height:18px;accent-color:var(--blue)}
-.ltr{direction:ltr;text-align:left}
-label.f{display:grid;gap:5px;font-size:13px;color:var(--muted)}
-.btn{min-height:42px;border-radius:11px;border:1px solid var(--line2);background:var(--card2);padding:0 16px;cursor:pointer;font-weight:700;color:var(--ink)}
-.btn:hover,.btn:focus-visible{border-color:var(--cyan);outline:none}
-.btn.p{background:linear-gradient(135deg,#2f7bff,#1b56d6);border-color:transparent;box-shadow:0 6px 22px rgba(47,123,255,.4)}
-.btn.s{min-height:34px;padding:0 11px;font-size:13px}
-.btn.d{color:var(--bad)}
-.chip{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:1px 9px;font-size:12px;border:1px solid var(--line2);white-space:nowrap}
-.chip.ok{color:var(--ok);border-color:rgba(61,220,151,.45)}.chip.warn{color:var(--warn);border-color:rgba(242,182,64,.45)}.chip.bad{color:var(--bad);border-color:rgba(251,113,133,.45)}
-.err{color:var(--bad);font-size:13px;min-height:1.2em}
-/* ── ورود ── */
-#login{min-height:100vh;display:grid;place-items:center;padding:20px}
-.lcard{width:min(980px,100%);display:grid;grid-template-columns:1fr 1.05fr;border-radius:26px;overflow:hidden;border:1px solid var(--line2);box-shadow:0 30px 80px rgba(0,0,0,.5)}
-.lform{background:rgba(8,16,46,.92);padding:clamp(22px,4vw,44px);display:grid;gap:14px;align-content:center}
-.lform h1{margin:0;font-size:24px}.lform p.sub{margin:-6px 0 4px;color:var(--muted);font-size:13px}
-.lside{position:relative;padding:clamp(22px,4vw,44px);display:grid;align-content:space-between;gap:28px;background:radial-gradient(circle at 75% 20%,rgba(124,196,255,.35),transparent 45%),radial-gradient(circle at 20% 90%,rgba(124,58,237,.45),transparent 55%),linear-gradient(150deg,#0e2a8a,#081a55 55%,#120a45)}
-.brand{display:flex;align-items:center;gap:12px}.brand svg{width:54px;height:46px}.brand img{width:52px;height:52px;border-radius:50%;box-shadow:0 0 0 1px rgba(201,164,90,.6),0 0 18px rgba(201,164,90,.25);flex:none}
-.brand b{font-family:Syncopate,"Arial Black",sans-serif;letter-spacing:.14em;font-size:18px;direction:ltr}
-.brand small{display:block;color:#b9c8ee;font-size:12px}
-.lside h2{font-size:clamp(22px,3vw,30px);line-height:1.35;margin:0}
-.lside ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.lside li{display:flex;gap:10px;align-items:center;color:#d6e1ff}
-.lside li i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(61,220,151,.18);color:var(--ok);font-style:normal;font-size:12px;flex:none}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.check{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
-.pw{position:relative}.pw button{position:absolute;inset-inline-start:6px;top:50%;transform:translateY(-50%);min-height:30px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px}
-.pw input{padding-inline-start:64px}
-/* ── پنل ── */
-#app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
-nav.side{border-inline-end:1px solid var(--line);background:rgba(5,12,40,.55);padding:18px 12px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
-nav.side .brand{padding:4px 8px 14px}
-nav.side button{display:flex;align-items:center;gap:10px;text-align:start;border:0;background:none;padding:10px 12px;border-radius:11px;cursor:pointer;color:var(--muted);font-weight:500}
-nav.side button[aria-current=page]{background:var(--card2);color:var(--ink);box-shadow:inset 3px 0 0 var(--cyan)}
-nav.side button:hover,nav.side button:focus-visible{color:var(--ink);outline:none;background:rgba(47,123,255,.12)}
-nav.side .me{margin-top:auto;border-top:1px solid var(--line);padding:12px 8px 0;font-size:12.5px;color:var(--muted)}
-nav.side .me b{display:block;color:var(--ink);font-size:14px}
-main.pg{padding:clamp(16px,3vw,32px);max-width:1200px;width:100%;min-width:0}
-.head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.head h1{margin:0;font-size:22px}.head p{margin:2px 0 0;color:var(--muted);font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;backdrop-filter:blur(8px)}
-.grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.kpi b{display:block;font-size:26px;line-height:1.2}.kpi span{color:var(--muted);font-size:12.5px}
-.tbl{width:100%;border-collapse:collapse}
-.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
-.tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:start;vertical-align:middle;white-space:nowrap}
-.tbl th{color:var(--muted);font-weight:500;font-size:12.5px;background:rgba(5,12,40,.4)}
-.tbl tr:last-child td{border-bottom:0}
-.tbl td.row{display:table-cell}.tbl td.row .btn{margin-inline-end:6px}
-.tbl tr.cl{cursor:pointer}.tbl tr.cl:hover td{background:rgba(47,123,255,.08)}
-.bar{height:8px;border-radius:99px;background:rgba(126,160,255,.15);overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--blue))}
-.mods{display:flex;flex-wrap:wrap;gap:8px}
-.mods label{display:flex;gap:6px;align-items:center;border:1px solid var(--line2);border-radius:99px;padding:4px 10px;cursor:pointer;font-size:13px}
-.mods label:has(input:checked){border-color:var(--cyan);background:rgba(34,211,238,.1)}
-.lvls{display:grid;gap:8px}.lvls .lv{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:center}
-.lvls .lv span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--card2);font-weight:700}
-dialog{border:1px solid var(--line2);border-radius:18px;background:#0a1640;color:var(--ink);padding:0;width:min(640px,94vw);max-height:90vh}
-dialog::backdrop{background:rgba(2,6,20,.7)}
-dialog form,dialog .dl{padding:20px;display:grid;gap:12px}
-dialog h2{margin:0;font-size:18px}
-.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));inset-inline-start:16px;z-index:50;background:#0f2a5a;border:1px solid var(--line2);border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
-.empty{color:var(--muted);text-align:center;padding:26px}
-.secret{background:rgba(61,220,151,.1);border:1px dashed rgba(61,220,151,.5);border-radius:12px;padding:12px}
-.mb{margin-bottom:12px}
-@media (max-width:860px){.lcard{grid-template-columns:1fr}.lside{order:-1;padding:22px}.lside h2,.lside ul{display:none}
- #app{grid-template-columns:1fr}nav.side{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;overflow-x:auto;padding:8px;gap:4px}nav.side .brand,nav.side .me{display:none}nav.side button{white-space:nowrap;padding:8px 10px}}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
-
-/* ── چیدمان جمع‌وجور (TSUBA panel 1.1) ── */
-.g4{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))!important}
-.card.kpi{padding:12px 14px}.kpi b{font-size:22px}.kpi span{font-size:12px}
-main.pg{padding:20px clamp(16px,2.4vw,28px);max-width:none}
-html.tsuba-demo main.pg{padding-top:54px}
-.head{margin-bottom:12px}.head p{margin:2px 0 0}
-nav.side{padding:14px 10px}nav.side button{padding:8px 12px;font-size:14px}nav.side .brand{padding:2px 6px 10px}
-.tbl th,.tbl td{padding:8px 10px}.tbl td{font-size:13.5px}
-.card{padding:14px}.mb{margin-bottom:12px}
-
-/* ══════ TSUBA panel 2.0 — ترکیب دو نمونه: روشن بنفش (پیش‌فرض) و تیره‌ی لیمویی ══════ */
-:root{--bg:#f3f1fa;--bg2:#ece8f8;--card:#ffffff;--card2:#f5f2fd;--ink:#1d1640;--muted:#7a7396;--line:rgba(76,42,158,.10);--line2:rgba(76,42,158,.20);--blue:#6c3cf0;--cyan:#6c3cf0;--lime:#c6f432;--lime-ink:#141a05;--side1:#2b1a6b;--side2:#4b2bb0;--sideInk:rgba(255,255,255,.72);--hero:linear-gradient(120deg,#3a1d9e 0%,#7b3ff2 48%,#e98ac4 78%,#ffc9a3 100%);--shadow:0 10px 30px rgba(43,26,107,.08)}
-html[data-theme=dark]{--bg:#0b0d0a;--bg2:#11140e;--card:#151912;--card2:#1c2117;--ink:#eef3e6;--muted:#8e9884;--line:rgba(198,244,50,.10);--line2:rgba(198,244,50,.22);--blue:#c6f432;--cyan:#c6f432;--side1:#0f120c;--side2:#151a10;--sideInk:rgba(238,243,230,.62);--hero:radial-gradient(120% 140% at 0% 0%,rgba(198,244,50,.28),transparent 55%),linear-gradient(135deg,#171c12,#0f120c);--shadow:0 10px 30px rgba(0,0,0,.35)}
-html{background:var(--bg)}
-body{background:radial-gradient(55vmax 40vmax at 85% -10%,rgba(123,63,242,.16),transparent 60%),radial-gradient(45vmax 35vmax at 0% 110%,rgba(255,201,163,.30),transparent 70%),var(--bg)!important;color:var(--ink)}
-html[data-theme=dark] body{background:radial-gradient(50vmax 40vmax at 90% -10%,rgba(198,244,50,.10),transparent 60%),var(--bg)!important}
-input,select,textarea{background:var(--card)!important;color:var(--ink);border-color:var(--line2)!important}
-input:focus,select:focus,textarea:focus{outline-color:var(--blue)!important}
-.card,.tw{background:var(--card)!important;border-color:var(--line)!important;box-shadow:var(--shadow);backdrop-filter:none!important}
-.card.kpi{border-radius:18px}.kpi b{font-size:28px!important;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
-.card.kpi:first-child{background:var(--ink)!important;color:var(--bg)}.card.kpi:first-child b,.card.kpi:first-child span{color:var(--bg)!important}
-html[data-theme=dark] .card.kpi:first-child{background:var(--lime)!important}html[data-theme=dark] .card.kpi:first-child b,html[data-theme=dark] .card.kpi:first-child span{color:var(--lime-ink)!important}
-.tbl th{background:var(--card2)!important;color:var(--muted)}.tbl tr.cl:hover td{background:var(--card2)!important}
-.btn{background:var(--card2);border-color:var(--line2);color:var(--ink)}.btn:hover,.btn:focus-visible{border-color:var(--blue)}
-.btn.p{background:var(--lime)!important;color:var(--lime-ink)!important;border-color:transparent!important;box-shadow:0 8px 22px rgba(160,210,20,.35)!important}
-html:not([data-theme=dark]) .btn.p{background:var(--blue)!important;color:#fff!important;box-shadow:0 8px 22px rgba(108,60,240,.35)!important}
-.chip{background:var(--card2)}
-/* منوی کناری */
-nav.side{background:linear-gradient(180deg,var(--side1),var(--side2))!important;border:0!important;color:#fff}
-nav.side button{color:var(--sideInk)!important;border-radius:12px}
-nav.side button:hover,nav.side button:focus-visible{background:rgba(255,255,255,.08)!important;color:#fff!important}
-nav.side button[aria-current=page]{background:rgba(255,255,255,.14)!important;color:#fff!important;box-shadow:inset 3px 0 0 var(--lime)!important}
-nav.side .brand b,nav.side .brand strong,nav.side .brand,nav.side .me b{color:#fff!important}nav.side .brand small,nav.side .me{color:var(--sideInk)!important;border-color:rgba(255,255,255,.12)!important}
-nav.side .me .btn{background:rgba(255,255,255,.1)!important;border-color:rgba(255,255,255,.2)!important;color:#fff!important}
-/* سرتیتر هر صفحه: نوار خوش‌آمد (نمونه‌ی اول) */
-main.pg .head{background:var(--hero);color:#fff;border-radius:22px;padding:20px 24px!important;margin-bottom:16px!important;box-shadow:0 18px 40px rgba(76,42,158,.22);position:relative;overflow:hidden}
-main.pg .head h1{font-size:26px!important;color:#fff}main.pg .head p,main.pg .head small,main.pg .head span{color:rgba(255,255,255,.82)!important}
-html[data-theme=dark] main.pg .head{box-shadow:0 18px 40px rgba(0,0,0,.4);border:1px solid var(--line2)}html[data-theme=dark] main.pg .head h1{color:var(--lime)}
-main.pg .head .btn{background:rgba(255,255,255,.16)!important;border-color:rgba(255,255,255,.3)!important;color:#fff!important}
-/* صفحه‌ی ورود */
-.lcard{border-color:var(--line2)!important;box-shadow:0 30px 80px rgba(43,26,107,.18)!important}
-.lform{background:var(--card)!important;color:var(--ink)}
-.lside{background:var(--hero)!important;color:#fff}
-/* دکمه‌ی تم */
-#thT{position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9999;width:42px;height:42px;border-radius:50%;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:var(--shadow)}
-</style>
+<link rel="stylesheet" href="panel.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -328,6 +203,7 @@ if(T)api('GET','/me').then(enter).catch(function(){T='';try{localStorage.removeI
 </script>
 <script src="extras.js"></script>
 <script src="sitemap.js"></script>
+<script src="fx.js"></script>
 <script>(function(){var K='tsuba.theme',r=document.documentElement;try{var t=localStorage.getItem(K);if(t)r.dataset.theme=t}catch(e){}
 function mk(){if(document.getElementById('thT'))return;var b=document.createElement('button');b.id='thT';b.type='button';var set=function(){b.textContent=r.dataset.theme==='dark'?'☀️':'🌙';b.title=r.dataset.theme==='dark'?'حالت روشن':'حالت تیره';b.setAttribute('aria-label',b.title)};set();
 b.onclick=function(){r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem(K,r.dataset.theme)}catch(e){}set()};document.body.appendChild(b)}
