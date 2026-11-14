@@ -6,6 +6,10 @@
 - هاست و راه‌اندازی: [docs/HOSTING-fa.md](docs/HOSTING-fa.md)
 - اتصال Aide: [docs/AIDE-CONTRACT-fa.md](docs/AIDE-CONTRACT-fa.md)
 
+https://danialmor.github.io/TSUBA/
+https://danialmor.github.io/TSUBA/admin/
+https://danialmor.github.io/TSUBA/msp-bi/
+https://danialmor.github.io/TSUBA/aide/
 ## ساختار
 ```
 index.html            صفحه‌ی اول (لوگوی متحرک، بدون لینک)
