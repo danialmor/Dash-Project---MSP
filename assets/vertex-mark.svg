@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="VERTEX">
+<defs>
+<radialGradient id="bg" cx="50%" cy="38%" r="75%"><stop offset="0" stop-color="#1c1240"/><stop offset="1" stop-color="#07060d"/></radialGradient>
+<linearGradient id="st" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset=".55" stop-color="#d946ef"/><stop offset="1" stop-color="#f0abfc"/></linearGradient>
+<filter id="gl" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<circle cx="120" cy="120" r="120" fill="url(#bg)"/>
+<path d="M52 66h136L120 186z" fill="none" stroke="#d946ef" stroke-width="12" stroke-linejoin="round" filter="url(#gl)" opacity=".75"/>
+<path d="M52 66h136L120 186z" fill="none" stroke="url(#st)" stroke-width="10" stroke-linejoin="round"/>
+<circle cx="120" cy="186" r="15" fill="#c6f432" filter="url(#gl)" opacity=".7"/>
+<circle cx="120" cy="186" r="9" fill="#c6f432"/>
+</svg>

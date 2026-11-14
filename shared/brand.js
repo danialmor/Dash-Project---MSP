@@ -9,13 +9,13 @@
   'use strict';
   var me = document.currentScript, base = me ? new URL('../', me.src).href : '/';
   var B = {
-    name: 'TSUBA',
-    kanji: '鍔',
+    name: 'VERTEX',
+    kanji: '',
     tagline_en: 'Twelve Platforms · One Ecosystem',
     tagline_fa: 'اکوسیستم دوازده پلتفرم',
-    motto: 'Balance · Purpose · Identity',
-    logo: base + 'assets/tsuba-emblem.svg',
-    logo_alt: 'TSUBA emblem: a gold sword guard framed by a green-leaf crest',
+    motto: 'Where every line meets',
+    logo: base + 'assets/vertex-mark.svg',
+    logo_alt: 'VERTEX mark: a glowing inverted triangle with a bright point at its lower vertex',
     base: base,
     /* شماره‌ی رومی، شناسه (همان شناسه‌ی هاب)، نام و توضیح انگلیسی و فارسی، رنگ، آیکون، نشانی */
     platforms: [

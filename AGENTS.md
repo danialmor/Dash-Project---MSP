@@ -4,7 +4,7 @@ This file is the entry point for any AI assistant or developer opening this repo
 Read it fully, then read the documents it links. **Do not start from scratch**: most of the system exists and is tested.
 
 ## What this project is
-**TSUBA** (formerly Danimor; repo `danialmor/TSUBA`) is a private business ecosystem for a construction / interior-design company in Isfahan, Iran
+**VERTEX** (formerly TSUBA and Danimor; repo still `danialmor/TSUBA`) is a private business ecosystem for a construction / interior-design company in Isfahan, Iran
 (owner: Danial, architect and construction project manager; ~10 active projects, 30–40 users).
 One domain hosts several sites ("modules") that share **one login, one database, one permission system and one integration layer**.
 
@@ -21,10 +21,10 @@ One domain hosts several sites ("modules") that share **one login, one database,
 ## Repository map
 | Path | What it is |
 |---|---|
-| `index.html` | Ecosystem landing page: TSUBA emblem with the 12 platforms around it (noindex). |
+| `index.html` | Ecosystem landing page: the VERTEX triangle with the 12 platforms on its three sides (noindex). |
 | `shared/brand.js` | **Brand root**: name, logo, taglines and the 12 platforms (numeral, name, description, colour, icon, link). Change the brand only here. |
 | `shared/demo.js` | In-browser demo hub used only on GitHub Pages (`*.github.io`) so the panel can be tried without a server. |
-| `assets/tsuba-emblem.svg` | The logo (text SVG wrapping a WebP). |
+| `assets/vertex-mark.svg` | The logo (plain SVG triangle). `assets/tsuba-emblem.svg` is the previous logo, unused. |
 | `msp-bi/` | **Project Control** dashboard (single large HTML app, v3.51.0) + `hub-bridge.js` (server sync) + `sw.js` + PWA files. |
 | `admin/` | **User Control Panel** + unified login: ecosystem-admin console (subscriptions, requests, modules, staff, system) and subscription-admin panel (users, 10 levels, profile). |
 | `admin/extras.js`, `admin/sitemap.js`, `admin/lib/` | Panel extensions (permissions, notifications, search, import, security, sales) and the ecosystem site map (Drawflow, MIT). They reach the panel through `window.TSP`. |

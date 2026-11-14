@@ -27,3 +27,5 @@ Each entry: date · decision · reason. Do not reverse without the owner's appro
 - **2026-11** · Control panel keeps its own blue design (Tabler redesign rejected by the owner). · Owner preference.
 - **2026-11** · Logo stored as a text SVG wrapping a WebP (`assets/tsuba-emblem.svg`). · The AI connector can only commit text files.
 - **2026-11** · GitHub Pages runs a browser-only demo hub for the panel (`shared/demo.js`). · Owner wants to see results on GitHub before having a server.
+- **2026-11-14** · Brand renamed **VERTEX**; mark = glowing inverted triangle with a lime point at its lower vertex (`assets/vertex-mark.svg`). The repository is still named `TSUBA` until the owner renames it. · Owner decision.
+- **2026-11-14** · Landing page: the twelve platforms sit on the three sides of the triangle (four per side), dark violet with lime accents. · Owner asked for a triangle identity.
