@@ -1282,7 +1282,7 @@ var root=document.documentElement;try{var th=localStorage.getItem('dsTheme');if(
 $('#themeBtn').onclick=function(){DS.theme=(root.dataset.theme==='dark')?'light':'dark';applyDS();refreshView()};
 // ───── قرص کشسان منو: دو لبه با مدت و شتاب متفاوت، با clip-path
 var nav=$('#nav'),fill=$('#fill'),fillIn=$('#fillIn'),tabs=$$('.tab',nav),tw=0;
-fillIn.innerHTML=tabs.map(function(t){return '<span class="tab">'+t.innerHTML+'</span>'}).join('');
+fillIn.innerHTML=tabs.filter(function(t){return getComputedStyle(t).display!=='none'}).map(function(t){return '<span class="tab">'+t.innerHTML+'</span>'}).join('');
 function tween(o,key,to,dur,ease,upd,token){var from=o[key],t0=performance.now();(function f(now){if(o.__tok!==token)return;var p=Math.min(1,(now-t0)/dur);o[key]=from+(to-from)*ease(p);upd();if(p<1)requestAnimationFrame(f)})(t0)}
 function slidePill(target,animate){
   var fb=fill.getBoundingClientRect(),tb=target.getBoundingClientRect(),W=fb.width;
@@ -1416,7 +1416,7 @@ function renderSched(){
  $('#schedStats').innerHTML=[['M3 17l5-6 4 3 5-8 4 5',P,'%','پیشرفت واقعی'],['M12 7v5l3 2',PL2,'%','برنامه تا امروز'],['M20 6 9 17l-5-5',L.length,'','فعالیت'],['M12 8v5M12 17h.01',lt,'','دیرکرد']].map(function(c,i){return '<div class="stat"><span class="ic"><svg viewBox="0 0 24 24"><path d="'+c[0]+'"/></svg></span><div><b class="fa" data-count="'+c[1]+'" data-suf="'+c[2]+'">'+fa(String(c[1]).replace('.','.'))+c[2]+'</b><small>'+c[3]+(i===0?' ('+sg(Math.round((P-PL2)*10)/10)+' انحراف)':'')+'</small></div></div>'}).join('');
  var nm=L.filter(function(o){return o.a.indexOf(ME)>=0&&o.p<100}).length;
  $('#sfChips').innerHTML=[['all','همه',null],['mine','مسئولیت من',nm],['late','دیرکرد',lt]].map(function(c){return '<button type="button" class="fc'+(sf.f===c[0]?' on':'')+'" data-f="'+c[0]+'">'+c[1]+(c[2]!=null?'<em class="fa">'+fa(c[2])+'</em>':'')+'</button>'}).join('');
-  var db0=$('#dlBadge');if(db0&&window.DL)db0.textContent=fa(DL.filter(function(x){return x.st!=='done'}).length);drawSched()}
+  var db0=$('#dlBadge');if(db0&&typeof DL!=='undefined'&&DL)db0.textContent=fa(DL.filter(function(x){return x.st!=='done'}).length);drawSched()}
 function drawSched(){var el=$('#schedBody'),sc=$('#sfChips');if(sc)sc.style.display=(sf.m==='delay'||sf.m==='tl')?'none':'';
  if(sf.m==='next'){var L=filt(leaves().filter(function(o){return sf.f!=='all'||o.p<100&&(o.p>0||late(o)||o.s<=21)})).sort(function(a,b){return late(b)-late(a)||a.s-b.s});
   el.innerHTML='<div class="card"><h2>فعالیت‌های پیش‌رو <span class="tag">در حال انجام، دیرکرد و شروع‌شونده تا 21 days آینده</span></h2><div class="tw"><table class="tbl"><thead><tr><th>فعالیت</th><th>شروع</th><th>پایان</th><th>پیشرفت</th><th>مسئولان</th><th>وضعیت</th><th></th></tr></thead><tbody>'+(L.map(function(o){var st=stat(o),mine=o.a.indexOf(ME)>=0;return '<tr data-oid="'+o.id+'" class="'+(late(o)?'late':'')+'"><td class="nm"><b>'+o.n+'</b><span class="cr"><i class="pdot" style="background:'+pcol(o)+'"></i>'+crumb(o)+'</span></td><td class="fa mut">'+jshort(o.s)+'</td><td class="fa '+(late(o)?'':'mut')+'" style="'+(late(o)?'color:var(--red);font-weight:600':'')+'">'+jshort(o.e)+'</td><td>'+pgc(o)+'</td><td>'+avs(o)+'</td><td><span class="chip '+st[1]+'">'+st[0]+'</span></td><td>'+(mine?'<button type="button" class="go" data-do="'+o.id+'" title="ثبت پیشرفت">✓</button>':'')+'</td></tr>'}).join('')||'<tr><td colspan="7" class="note">موردی پیدا نشد.</td></tr>')+'</tbody></table></div></div>'}
@@ -1753,8 +1753,9 @@ document.addEventListener('click',function(e){var t=e.target;var op=t.closest('[
 seg('segI',function(b){inf.m=b.dataset.i;inf.card=null;inf.place=false;renderInfo()},'info');
 
 // ═════ درباره‌ی و نسخه‌ها (برای هر تغییر یک نسخه؛ ردیف تازه‌ها بالای فهرست اضافه می‌شود) ═════
-var VERSION='3.51.0';
+var VERSION='3.52.0';
 var CHANGELOG=[
+{v:'3.52.0',d:'23 آبان 1405',t:'اصلاح نام تب‌های اصلی',b:['با زدن روی تب‌های «امتیازها» و «بارگذاری» نام دیگری («راندمان» / «اطلاعات تکمیلی») روی تب روشن دیده می‌شد؛ حالا نام روشن همیشه همان نام تب است','شمارنده‌ی «تأخیرها» در کنترل پروژه از اول عدد درست را نشان می‌دهد و با باز کردن تب عوض نمی‌شود']},
 {v:'3.51.0',d:'21 آبان 1405',t:'اصلاح «نیاز به اقدام»',b:['آخرین مورد فهرست زیر قاب پنهان می‌ماند و فهرست پیمایش نمی‌شد؛ حالا فهرست هم‌اندازه‌ی قاب است و داخل آن پیمایش می‌شود.','دکمه‌ی «بازبینی» کاری نمی‌کرد؛ حالا به همان بخش می‌برد (درخواست‌های تأخیر، نامه‌ها یا پروژه).','درخواست‌های تأخیرِ بی‌پاسخ از داده‌ی واقعی به فهرست اضافه می‌شوند.','موردی که «تأیید» یا «پیگیری» شود با بارگذاری دوباره برنمی‌گردد.']},
 {v:'3.50.0',d:'21 آبان 1405',t:'کاشی WBS هم‌قد کاشی‌های کناری',b:['کاشی پیشرفت WBS هم‌قد دو کاشی کناری شد و ردیف‌های جدولش فشرده‌تر شدند.']},
 {v:'3.49.0',d:'21 آبان 1405',t:'سرتیتر کوتاه کنترل پروژه',b:['سرتیتر صفحه‌ی کنترل پروژه یک‌خطی و کوتاه شد؛ عددها کوچک‌تر و آیکون‌ها کوچک‌تر، تا جای بیشتری برای فهرست فعالیت‌ها بماند.']},
